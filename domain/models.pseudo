@@ -1,0 +1,51 @@
+﻿# Core data models / table-like pseudo structure
+
+TYPE User {
+  user_id: long            # Unique user identifier.
+  status: tinyint          # Account status used for minimal validity checks.
+  created_at: timestamp    # User creation time.
+}
+# solves: user identity and status source for friendship/post validation.
+# access: point lookup by user_id.
+# index: PK(user_id).
+# scale rationale: 10M+ users still fits key-based access without scan.
+
+TYPE Friendship {
+  user_id: long            # Owner side of one directed friend edge.
+  friend_id: long          # Target friend on that directed edge.
+  status: tinyint          # Edge status for minimal relation lifecycle.
+  created_at: timestamp    # Edge creation time.
+}
+# solves: friend list retrieval via two directed edges (A->B and B->A).
+# access: list friends by user_id with cursor; idempotent check on (user_id, friend_id).
+# index: UK(user_id, friend_id), IDX(user_id, created_at DESC, friend_id).
+# scale rationale: bounded per-user friend fan-out with indexed prefix reads.
+
+TYPE Post {
+  post_id: long            # Unique post identifier.
+  author_id: long          # Author user identifier.
+  content_text: string     # Minimal text content payload.
+  created_at: timestamp    # Post creation time for timeline ordering.
+}
+# solves: source-of-truth storage for authored posts.
+# access: list author's posts by author_id + created_at DESC; batch get by post_id.
+# index: PK(post_id), IDX(author_id, created_at DESC, post_id).
+# scale rationale: avoids deep-scan for per-author chronological reads.
+
+TYPE FeedInbox {
+  user_id: long            # Viewer user who owns this inbox row.
+  created_at: timestamp    # Ordering key copied from post time.
+  post_id: long            # Referenced post identifier (not full body).
+  author_id: long          # Lightweight author info for assembly/filtering.
+}
+# solves: precomputed friend timeline index for read path.
+# access: list timeline by user_id + created_at DESC with cursor pagination.
+# index: PK(user_id, created_at DESC, post_id), optional UK(user_id, post_id).
+# scale rationale: avoids runtime merge/sort across up to 5000 friends' full posts.
+
+TYPE PageResult<T> {
+  items: list<T>           # Current page records.
+  next_cursor: string?     # Cursor of next page, null when exhausted.
+  has_more: bool           # Whether additional rows exist.
+}
+# pagination note: prefer cursor(created_at, post_id) over deep offset paging.
