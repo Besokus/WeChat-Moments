@@ -21,3 +21,10 @@
   - validation: read-back check passed for all three files
   - next: wait for next module request or refine interfaces if asked
 - [2026-04-21 22:25:52] Validation grep: all five required function signatures found in domain/*.pseudo.
+
+- [
+2026-04-21 22:38:44
+] Added docs/final-delivery-spec.md as deliverable version definition.
+  - files: docs/final-delivery-spec.md
+  - validation: content read-back completed
+  - next: wait for user to choose next module

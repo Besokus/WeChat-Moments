@@ -33,3 +33,8 @@
 - publishPost 体现写 Post + 查好友 + 扇出写 FeedInbox，并注明异步 fan-out 建议。
 - listUserPosts 使用 author 维度倒序 + cursor 分页。
 - listFriendTimeline 使用 FeedInbox 游标分页 + 批量回查 Post，并明确禁止读时遍历 5000 好友归并。
+
+## 2026-04-21 可交付版本说明固化
+- 新增 docs/final-delivery-spec.md，明确项目成功标准与模块验收口径。
+- 重点固化了 10M+/5000/100 约束如何落到模型、访问模式与分页策略。
+- 明确读时不能动态聚合最多 5000 好友全量动态的工程原因。
