@@ -7,41 +7,37 @@ TYPE PageResult<T> {
 }
 
 SERVICE TimelineService {
-  DEPENDS ON FriendRepository
+  DEPENDS ON FeedInboxRepository
   DEPENDS ON MomentRepository
 
-  # 职责：按好友集合查询并分页返回好友动态时间线。
+  # 职责：从预计算 FeedInbox 分页读取好友动态时间线，并批量回查动态详情。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
     if viewerId <= 0:
       return PageResult([], null, false)
 
     size = clamp(limit, 1, 100)
 
-    # 1) 查好友
-    friendRows = friendRepository.ListByUser(viewerId, null, 5000)
+    inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, size + 1)  # created_at DESC
 
-    # 2) 提取 friendIds
-    friendIds = []
-    for row in friendRows:
-      friendIds.append(row.friend_id)
+    hasMore = length(inboxRows) > size
+    pageInboxRows = takeFirst(inboxRows, size)
 
-    if length(friendIds) == 0:
-      return PageResult([], null, false)
+    postIds = []
+    for row in pageInboxRows:
+      postIds.append(row.post_id)
 
-    # 3) 分页拉取最近动态（按多个 authorId）
-    rows = momentRepository.ListRecentByAuthors(friendIds, cursor, size + 1)
+    postMap = toMap(momentRepository.BatchGet(postIds), key = post_id)
 
-    # 4) 按 createdAt 倒序
-    rows = sortDesc(rows, by = created_at)
-
-    hasMore = length(rows) > size
-    pageRows = takeFirst(rows, size)
+    items = []
+    for row in pageInboxRows:
+      post = postMap[row.post_id]
+      if post is not null:
+        items.append(post)
 
     nextCursor = null
-    if hasMore and length(pageRows) > 0:
-      last = pageRows[length(pageRows) - 1]
+    if hasMore and length(pageInboxRows) > 0:
+      last = pageInboxRows[length(pageInboxRows) - 1]
       nextCursor = encodeCursor(last.created_at, last.post_id)
 
-    # 5) 返回 PageResult
-    return PageResult(pageRows, nextCursor, hasMore)
+    return PageResult(items, nextCursor, hasMore)
 }

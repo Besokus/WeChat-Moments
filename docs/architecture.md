@@ -16,22 +16,19 @@
 - 公共接口以外的系统配置、依赖、部署、CI/CD 变更。
 
 ## 核心模型概览
-- `User`
-- `FriendEdge`（双向边，便于按 user 查好友）
-- `Moment`
-- `FeedInboxItem`（预计算 inbox 流，供 viewer 拉取好友动态流）
+- `User`：用户身份与状态。
+- `Friendship`：两条单向边表示双向好友关系。
+- `Post`：动态主表，保存正文与作者信息。
+- `FeedInbox`：好友时间线索引，只保存动态引用与轻量字段。
 
 ## 分页协议
-- 请求：
-  - `PageRequest { cursor: string?, limit: int }`
-- 响应：
-  - `PageResult<T> { items: list<T>, next_cursor: string?, has_more: bool }`
-- 约定：
-  - 首次查询 `cursor = null`。
-  - 游标由服务端编码，不暴露内部排序键细节。
-  - `limit` 必须做上限保护（如最大 100）。
+- 请求：`PageRequest { cursor: string?, limit: int }`
+- 响应：`PageResult<T> { items: list<T>, next_cursor: string?, has_more: bool }`
+- 游标优先使用 `(created_at, post_id)`。
+- `limit` 必须做上限保护（如最大 100）。
 
 ## 查询策略（最小可生产骨架）
-- 查询某人的动态：按 `(author_id, seq_id DESC)` 读取。
-- 查询某人视角的好友流：按 `(owner_user_id, seq_id DESC)` 读取 `FeedInboxItem`，再回表/批量取 `Moment`。
-- 发布动态后由流程层触发“写入好友 inbox 条目”，避免查询时做全量聚合排序。
+- 查询某人的动态：按 `(author_id, created_at DESC, post_id)` 读取 `Post`。
+- 发布动态：写 `Post` 后读取作者好友列表，并将动态引用写入好友 `FeedInbox`。
+- 查询某人视角的好友流：按 `(user_id, created_at DESC, post_id)` 读取 `FeedInbox`，再批量回查 `Post`。
+- 正式路径不使用读时按 5000 好友动态集合聚合排序。

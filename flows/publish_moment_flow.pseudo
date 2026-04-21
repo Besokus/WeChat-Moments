@@ -2,10 +2,10 @@
 
 FLOW PublishMomentFlow(author_id: long, content_text: string) {
   STEP 1: validate input
-  STEP 2: create moment_id and seq_id
-  STEP 3: persist moment
-  STEP 4: query friend ids of author (cursor loop if needed)
-  STEP 5: build FeedInboxItem list for each friend
-  STEP 6: batch write inbox items
-  STEP 7: return moment_id
+  STEP 2: create post_id and created_at
+  STEP 3: persist Post
+  STEP 4: query author friend list by user_id
+  STEP 5: build FeedInbox rows with post_id, author_id, created_at
+  STEP 6: batch write FeedInbox rows to friends
+  STEP 7: return post_id
 }

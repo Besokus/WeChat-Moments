@@ -12,11 +12,11 @@ TYPE PageResult<T> {
 }
 
 MODULE CursorCodec {
-  # Encode stable sorting keys, e.g. (seq_id, tie_breaker_id).
-  Encode(keys: map<string, any>) -> string
+  # Encode stable sorting keys, normally (created_at, post_id).
+  Encode(created_at: timestamp, post_id: long) -> string
 
   # Decode and validate cursor format/version.
-  Decode(cursor: string) -> map<string, any>
+  Decode(cursor: string?) -> map<string, any>
 
   ValidateLimit(limit: int, default_limit: int, max_limit: int) -> int
 }

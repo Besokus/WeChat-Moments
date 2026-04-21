@@ -20,7 +20,14 @@ INTERFACE MomentRepository {
 
   # cursor + limit pagination by one author
   ListByAuthor(author_id: long, cursor: string?, limit: int) -> list<Post>
-
-  # batch query recent posts by multiple authors
-  ListRecentByAuthors(author_ids: list<long>, cursor: string?, limit: int) -> list<Post>
 }
+
+INTERFACE FeedInboxRepository {
+  BatchInsert(items: list<FeedInbox>) -> void
+
+  # cursor + limit pagination by viewer inbox, ordered by created_at desc
+  ListByUser(user_id: long, cursor: string?, limit: int) -> list<FeedInbox>
+}
+
+# 正式时间线读取路径只使用 FeedInboxRepository.ListByUser。
+# 不提供读时按 friendIds 聚合最近动态的仓储方法，避免误用为主路径。

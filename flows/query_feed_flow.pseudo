@@ -1,11 +1,11 @@
-﻿# Query friend feed flow skeleton (pseudo)
+﻿# Query friend timeline flow skeleton (pseudo)
 
-FLOW QueryFriendFeedFlow(viewer_user_id: long, page: PageRequest) {
+FLOW QueryFriendTimelineFlow(viewer_user_id: long, page: PageRequest) {
   STEP 1: validate limit and decode cursor
-  STEP 2: read FeedInboxItem by (owner_user_id, seq_id DESC)
-  STEP 3: collect moment_ids from inbox items
-  STEP 4: batch load moments by ids
-  STEP 5: assemble PageResult<Moment>
-  STEP 6: encode next_cursor
+  STEP 2: read FeedInbox by (user_id, created_at DESC, post_id)
+  STEP 3: collect post_ids from inbox rows
+  STEP 4: batch load Post rows by post_ids
+  STEP 5: keep inbox order and assemble PageResult<Post>
+  STEP 6: encode next_cursor from last inbox row
   STEP 7: return page result
 }

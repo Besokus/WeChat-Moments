@@ -1,10 +1,9 @@
 ﻿# ID generation contract (pseudo)
 
 INTERFACE IdGenerator {
-  NextMomentId() -> long
-  NextSeqId() -> long
+  NextPostId() -> long
 }
 
 # Contract
-# - moment_id must be unique globally.
-# - seq_id must be monotonically increasing for stable DESC pagination.
+# - post_id must be unique globally.
+# - created_at + post_id is used as the stable cursor ordering key.

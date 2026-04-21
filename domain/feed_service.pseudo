@@ -1,47 +1,9 @@
-﻿# TimelineService pseudocode
+﻿# FeedService compatibility pseudocode
 
-TYPE PageResult<T> {
-  items: list<T>
-  next_cursor: string?
-  has_more: bool
-}
+SERVICE FeedService {
+  DEPENDS ON TimelineService
 
-SERVICE TimelineService {
-  DEPENDS ON FriendRepository
-  DEPENDS ON MomentRepository
-
-  # 职责：按好友集合查询并分页返回好友动态时间线。
-  function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
-    if viewerId <= 0:
-      return PageResult([], null, false)
-
-    size = clamp(limit, 1, 100)
-
-    # 1) 查好友
-    friendRows = friendRepository.ListByUser(viewerId, null, 5000)
-
-    # 2) 提取 friendIds
-    friendIds = []
-    for row in friendRows:
-      friendIds.append(row.friend_id)
-
-    if length(friendIds) == 0:
-      return PageResult([], null, false)
-
-    # 3) 分页拉取最近动态（按多个 authorId）
-    rows = momentRepository.ListRecentByAuthors(friendIds, cursor, size + 1)
-
-    # 4) 按 createdAt 倒序
-    rows = sortDesc(rows, by = created_at)
-
-    hasMore = length(rows) > size
-    pageRows = takeFirst(rows, size)
-
-    nextCursor = null
-    if hasMore and length(pageRows) > 0:
-      last = pageRows[length(pageRows) - 1]
-      nextCursor = encodeCursor(last.created_at, last.post_id)
-
-    # 5) 返回 PageResult
-    return PageResult(pageRows, nextCursor, hasMore)
+  # 职责：兼容旧命名，实际委托给 TimelineService.listFriendMoments。
+  function listFriendTimeline(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
+    return timelineService.listFriendMoments(viewerId, cursor, limit)
 }

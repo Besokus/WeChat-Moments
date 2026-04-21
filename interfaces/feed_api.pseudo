@@ -1,4 +1,4 @@
-﻿# Feed API (pseudo)
+﻿# Timeline API (pseudo)
 
 TYPE PageRequest {
   cursor: string?
@@ -12,13 +12,12 @@ TYPE PageResult<T> {
 }
 
 TYPE MomentView {
-  moment_id: long
+  post_id: long
   author_id: long
   content_text: string
   created_at: timestamp
-  seq_id: long
 }
 
-INTERFACE FeedAPI {
-  ListFriendFeed(viewer_user_id: long, page: PageRequest) -> PageResult<MomentView>
+INTERFACE TimelineAPI {
+  ListFriendMoments(viewer_user_id: long, page: PageRequest) -> PageResult<MomentView>
 }

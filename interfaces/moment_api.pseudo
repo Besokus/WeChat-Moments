@@ -12,11 +12,10 @@ TYPE PageResult<T> {
 }
 
 TYPE MomentView {
-  moment_id: long
+  post_id: long
   author_id: long
   content_text: string
   created_at: timestamp
-  seq_id: long
 }
 
 INTERFACE MomentAPI {
