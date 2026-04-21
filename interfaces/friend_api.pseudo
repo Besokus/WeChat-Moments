@@ -1,17 +1,17 @@
 ﻿# Friend API (pseudo)
 
-TYPE PageRequest {
-  cursor: string?
-  limit: int
-}
-
 TYPE PageResult<T> {
   items: list<T>
   next_cursor: string?
   has_more: bool
 }
 
+TYPE Result {
+  success: bool
+  message: string
+}
+
 INTERFACE FriendAPI {
-  AddFriend(user_id: long, friend_id: long) -> void
-  ListFriends(user_id: long, page: PageRequest) -> PageResult<long>
+  AddFriend(user_id: long, friend_id: long) -> Result
+  ListFriends(user_id: long, cursor: string?, limit: int) -> PageResult<Friendship>
 }

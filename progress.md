@@ -57,3 +57,10 @@
   - validation: pending read-back checks
   - next: verify no ListRecentByAuthors remains
 - [2026-04-21 23:09:00] Validation complete for timeline convergence.   - checks: active repository/service/flow files no longer expose ListRecentByAuthors as formal path   - checks: publishMoment writes FeedInbox; listFriendMoments reads FeedInbox and batch loads Post   - note: ListRecentByAuthors only remains in historical findings/progress log text
+
+- [
+2026-04-21 23:21:09
+] Unified API contracts with service layer signatures.
+  - files: interfaces/friend_api.pseudo, interfaces/moment_api.pseudo, interfaces/feed_api.pseudo
+  - validation: read-back passed; parameters and return types aligned with service pseudocode
+  - next: commit this consistency patch

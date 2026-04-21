@@ -1,23 +1,11 @@
 ﻿# Timeline API (pseudo)
 
-TYPE PageRequest {
-  cursor: string?
-  limit: int
-}
-
 TYPE PageResult<T> {
   items: list<T>
   next_cursor: string?
   has_more: bool
 }
 
-TYPE MomentView {
-  post_id: long
-  author_id: long
-  content_text: string
-  created_at: timestamp
-}
-
 INTERFACE TimelineAPI {
-  ListFriendMoments(viewer_user_id: long, page: PageRequest) -> PageResult<MomentView>
+  ListFriendMoments(viewer_user_id: long, cursor: string?, limit: int) -> PageResult<Post>
 }

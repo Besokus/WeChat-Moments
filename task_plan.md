@@ -47,3 +47,7 @@
 2026-04-21 23:08:07
 - Phase: architecture convergence completed in working tree.
 - Formal timeline path is now FeedInbox read path; friendIds-based recent dynamic aggregation was removed from repository/service formal path.
+
+## Status Update 
+2026-04-21 23:21:09
+- Consistency patch completed: interface layer now aligned with service layer contracts.

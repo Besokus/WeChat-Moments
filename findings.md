@@ -60,3 +60,8 @@
 - 原因：在 10M+ 用户、最多 5000 好友、人均 100 动态约束下，读时聚合会带来跨索引读取、排序和尾延迟风险。
 - 修复：正式路径统一为 publishMoment 写 Post 后 fan-out 写 FeedInbox；listFriendMoments 从 FeedInbox 分页读取并批量回查 Post。
 - 已移除 MomentRepository.ListRecentByAuthors 作为正式仓储能力，避免误用为主路径。
+
+## 2026-04-21 接口契约一致性修复
+- FriendAPI 改为与 FriendService 对齐：AddFriend 返回 Result，ListFriends 使用 cursor+limit 并返回 PageResult<Friendship>。
+- MomentAPI 改为与 MomentService 对齐：PublishMoment 返回 PublishResult，ListUserMoments 返回 PageResult<Post>。
+- TimelineAPI 改为与 TimelineService 对齐：ListFriendMoments 使用 cursor+limit 并返回 PageResult<Post>。
