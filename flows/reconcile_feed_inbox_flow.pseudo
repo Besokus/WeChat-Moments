@@ -1,9 +1,14 @@
 ﻿# Feed reconciliation flow skeleton (pseudo)
 
 FLOW ReconcileFeedInboxFlow(scan_time: timestamp) {
-  STEP 1: scan outbox events with status FAILED or long-time PENDING
-  STEP 2: for each event, verify whether enough FeedInbox rows were produced
-  STEP 3: if rows missing, replay fan-out in idempotent chunk mode
-  STEP 4: mark event as SUCCEEDED when replay completes
-  STEP 5: send unresolved events to manual inspection queue after max retry
+  CONST RECONCILE_INTERVAL_MINUTES = 5
+  CONST MAX_ALLOWED_RECOVERY_MINUTES = 15
+  CONST MAX_AUTO_RETRY = 16
+
+  STEP 1: every RECONCILE_INTERVAL_MINUTES, scan outbox events with status FAILED or long-time PENDING
+  STEP 2: for each event, if now - event.created_at > MAX_ALLOWED_RECOVERY_MINUTES, raise alert immediately
+  STEP 3: verify whether enough FeedInbox rows were produced for this event
+  STEP 4: if rows missing and retry_count < MAX_AUTO_RETRY, replay fan-out in idempotent chunk mode
+  STEP 5: mark event as SUCCEEDED when replay completes
+  STEP 6: move unresolved events to dead-letter queue when retry_count >= MAX_AUTO_RETRY
 }

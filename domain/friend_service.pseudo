@@ -33,9 +33,14 @@ SERVICE FriendService {
     routeA = RouteContext(userId, null)
     routeB = RouteContext(friendId, null)
 
-    # UpsertEdge 保证重复调用安全。
-    friendRepository.UpsertEdge(userId, friendId, ACTIVE, now(), routeA)
-    friendRepository.UpsertEdge(friendId, userId, ACTIVE, now(), routeB)
+    try:
+      # UpsertEdge 保证重复调用安全。
+      friendRepository.UpsertEdge(userId, friendId, ACTIVE, now(), routeA)
+      friendRepository.UpsertEdge(friendId, userId, ACTIVE, now(), routeB)
+    catch err:
+      # 双边写失败时走修复入口，避免长期单边关系。
+      friendRepository.EnsureEdgePair(userId, friendId, now())
+      return Result(false, "partial write, repair scheduled")
 
     idempotencyRepository.Save("addFriend", requestId, toString(userId) + ":" + toString(friendId))
     return Result(true, "ok")

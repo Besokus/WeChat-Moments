@@ -34,12 +34,15 @@ INTERFACE FriendRepository {
 
   # cursor + limit pagination by user
   ListByUser(user_id: long, cursor: string?, limit: int, route: RouteContext) -> list<Friendship>
+
+  # repair path for one-way edge anomalies
+  EnsureEdgePair(user_id: long, friend_id: long, created_at: timestamp) -> void
 }
 
 INTERFACE MomentRepository {
   Get(post_id: long, route: RouteContext) -> Post?
 
-  # 批量按 post_id 获取，仓储内部按 post_id 路由到对应分片。
+  # MUST dedupe post_ids and group by shard key inside repository.
   BatchGetByPostIds(post_ids: list<long>) -> list<Post>
 
   # cursor + limit pagination by one author
@@ -68,13 +71,19 @@ INTERFACE FeedInboxRepository {
 
   # data lifecycle for long-term storage/index control
   DeleteBefore(user_id: long, expire_before: timestamp, route: RouteContext) -> int
+  DeleteOldestExceed(user_id: long, keep_rows: int, route: RouteContext) -> int
 }
 
 INTERFACE OutboxRepository {
-  FetchPending(batch_size: int, now_ts: timestamp) -> list<OutboxEvent>
+  # queue partition control for write-fanout throughput governance
+  ListActivePartitions(now_ts: timestamp) -> list<long>
+  CountPendingByPartition(partition_key: long, now_ts: timestamp) -> int
+  FetchPendingByPartition(partition_key: long, batch_size: int, now_ts: timestamp) -> list<OutboxEvent>
+
   MarkProcessing(event_id: long) -> bool
   MarkSucceeded(event_id: long) -> void
   MarkFailed(event_id: long, retry_count: int, next_retry_at: timestamp?) -> void
+  MoveToDeadLetter(event_id: long, reason: string) -> void
 }
 
 INTERFACE IdempotencyRepository {

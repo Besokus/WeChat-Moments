@@ -7,41 +7,70 @@ SERVICE FanoutWorkerService {
 
   CONST MAX_RETRY = 16
   CONST CHUNK_SIZE = 200
+  CONST MERGE_WINDOW_SECONDS = 5
+  CONST PARTITION_PENDING_SOFT_LIMIT = 20000
+  CONST PARTITION_PENDING_HARD_LIMIT = 100000
+  CONST MAX_EVENTS_PER_PARTITION_CYCLE = 1000
 
-  # 职责：异步消费 Outbox 事件，按分片分组后分批写入 FeedInbox，并处理重试。
-  function processPendingEvents(batchSize: int, nowTs: timestamp) -> void:
-    events = outboxRepository.FetchPending(batchSize, nowTs)
-    for event in events:
-      if not outboxRepository.MarkProcessing(event.event_id):
+  # 职责：按分区消费 Outbox，并在积压场景执行背压与降速。
+  function processPendingEvents(nowTs: timestamp) -> void:
+    partitions = outboxRepository.ListActivePartitions(nowTs)
+    for partitionKey in partitions:
+      pending = outboxRepository.CountPendingByPartition(partitionKey, nowTs)
+
+      if pending >= PARTITION_PENDING_HARD_LIMIT:
+        emitAlert("outbox hard backlog", partitionKey, pending)
         continue
 
-      authorId = event.payload["author_id"]
-      postId = event.aggregate_id
-      createdAt = event.payload["created_at"]
-      route = RouteContext(authorId, null)
+      quota = MAX_EVENTS_PER_PARTITION_CYCLE
+      if pending >= PARTITION_PENDING_SOFT_LIMIT:
+        quota = MAX_EVENTS_PER_PARTITION_CYCLE / 4
 
-      try:
-        friends = friendRepository.ListByUser(authorId, null, 5000, route)
+      events = outboxRepository.FetchPendingByPartition(partitionKey, quota, nowTs)
+      groups = mergeByAuthorWithinWindow(events, MERGE_WINDOW_SECONDS)
 
-        # 先按目标 user_id 路由分组，避免跨分片批写。
-        friendGroups = groupByRouteKey(friends, key = friend_id)
-        for group in friendGroups:
-          groupRoute = RouteContext(group.route_key, null)
-          chunks = splitIntoChunks(group.rows, CHUNK_SIZE)
+      for group in groups:
+        processAuthorGroup(group, nowTs)
 
-          for chunk in chunks:
-            items = []
-            for row in chunk:
-              items.append(FeedInbox(row.friend_id, createdAt, postId, authorId))
+  # 职责：按 author 短窗口合并处理，减少重复读取 5000 好友。
+  function processAuthorGroup(group: list<OutboxEvent>, nowTs: timestamp) -> void:
+    executable = []
+    for event in group:
+      if outboxRepository.MarkProcessing(event.event_id):
+        executable.append(event)
 
-            # BatchUpsertByRoute 幂等，重复重放不重复插入。
-            feedInboxRepository.BatchUpsertByRoute(groupRoute, items, CHUNK_SIZE)
+    if length(executable) == 0:
+      return
 
+    authorId = executable[0].payload["author_id"]
+    route = RouteContext(authorId, null)
+
+    try:
+      friends = friendRepository.ListByUser(authorId, null, 5000, route)
+      friendGroups = groupByRouteKey(friends, key = friend_id)
+
+      for friendGroup in friendGroups:
+        groupRoute = RouteContext(friendGroup.route_key, null)
+        chunks = splitIntoChunks(friendGroup.rows, CHUNK_SIZE)
+
+        for chunk in chunks:
+          items = []
+          for friendRow in chunk:
+            for event in executable:
+              items.append(
+                FeedInbox(friendRow.friend_id, event.payload["created_at"], event.aggregate_id, authorId)
+              )
+
+          # BatchUpsertByRoute 幂等，重复重放不重复插入。
+          feedInboxRepository.BatchUpsertByRoute(groupRoute, items, CHUNK_SIZE)
+
+      for event in executable:
         outboxRepository.MarkSucceeded(event.event_id)
-      catch err:
+    catch err:
+      for event in executable:
         retryCount = event.retry_count + 1
         if retryCount >= MAX_RETRY:
-          outboxRepository.MarkFailed(event.event_id, retryCount, null)
+          outboxRepository.MoveToDeadLetter(event.event_id, "fanout max retry exceeded")
         else:
           nextRetryAt = computeExponentialBackoff(nowTs, retryCount)
           outboxRepository.MarkFailed(event.event_id, retryCount, nextRetryAt)

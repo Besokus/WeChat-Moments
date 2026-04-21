@@ -1,0 +1,11 @@
+﻿# Feed retention flow skeleton (pseudo)
+
+FLOW FeedRetentionFlow(now_time: timestamp) {
+  CONST RETAIN_DAYS = 365
+  CONST MAX_INBOX_ROWS_PER_USER = 20000
+
+  STEP 1: scan active users by route partition
+  STEP 2: for each user, delete inbox rows older than now_time - RETAIN_DAYS
+  STEP 3: for each user, if inbox rows still exceed MAX_INBOX_ROWS_PER_USER, delete oldest exceeded rows
+  STEP 4: write retention metrics (deleted_rows, affected_users, partition)
+}
