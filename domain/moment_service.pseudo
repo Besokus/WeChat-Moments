@@ -1,16 +1,9 @@
-﻿# PostService core pseudocode
+﻿# MomentService pseudocode
 
 TYPE PublishResult {
-  post_id: long
+  moment_id: long
   success: bool
   message: string
-}
-
-TYPE PostView {
-  post_id: long
-  author_id: long
-  content_text: string
-  created_at: timestamp
 }
 
 TYPE PageResult<T> {
@@ -19,73 +12,37 @@ TYPE PageResult<T> {
   has_more: bool
 }
 
-SERVICE PostService {
+SERVICE MomentService {
   DEPENDS ON UserRepository
-  DEPENDS ON FriendshipRepository
-  DEPENDS ON PostRepository
-  DEPENDS ON FeedInboxRepository
+  DEPENDS ON MomentRepository
   DEPENDS ON IdGenerator
-  DEPENDS ON CursorCodec
 
-  # Function: publishPost(userId, content)
-  # purpose: create post and fan out lightweight references to friend inboxes.
-  # input: userId, content
-  # output: PublishResult
-  # complexity intuition: O(F), F is friend count.
-  # scale notes: use batch writes; real systems should prefer async fan-out.
-  function publishPost(userId: long, content: string) -> PublishResult:
-    if userId <= 0:
-      return PublishResult(0, false, "invalid user")
-    if content is null or trim(content) == "":
-      return PublishResult(0, false, "empty content")
+  # 职责：发布一条动态并写入动态主表。
+  function publishMoment(userId: long, content: string) -> PublishResult:
+    if userId <= 0 or content is null or trim(content) == "":
+      return PublishResult(0, false, "invalid request")
 
-    user = userRepository.getById(userId)
-    if user is null or user.status != ACTIVE:
-      return PublishResult(0, false, "user not available")
+    if userRepository.getById(userId) is null:
+      return PublishResult(0, false, "user not found")
 
-    postId = idGenerator.nextPostId()
-    createdAt = now()
-    postRepository.save(Post(postId, userId, content, createdAt))
+    momentId = idGenerator.nextMomentId()
+    momentRepository.Insert(Post(momentId, userId, content, now()))
+    return PublishResult(momentId, true, "ok")
 
-    friends = friendshipRepository.listByUser(userId)
-    inboxItems = []
-    for edge in friends:
-      if edge.status != ACTIVE:
-        continue
-      inboxItems.append(FeedInbox(edge.friend_id, createdAt, postId, userId))
-
-    feedInboxRepository.batchSave(inboxItems)
-    # note: in production, fan-out should be async via queue for lower tail latency.
-    return PublishResult(postId, true, "ok")
-
-  # Function: listUserPosts(targetUserId, cursor, size)
-  # purpose: query one user's posts in reverse chronological order with cursor paging.
-  # input: targetUserId, cursor, size
-  # output: PageResult<PostView>
-  # complexity intuition: O(size) with (author_id, created_at DESC, post_id) index.
-  # scale notes: prefer cursor(created_at, post_id) over deep offset paging.
-  function listUserPosts(targetUserId: long, cursor: string?, size: int) -> PageResult<PostView>:
-    if targetUserId <= 0:
+  # 职责：按 authorId + cursor + limit 倒序分页查询个人动态。
+  function listUserMoments(authorId: long, cursor: string?, limit: int) -> PageResult<Post>:
+    if authorId <= 0:
       return PageResult([], null, false)
 
-    limit = clamp(size, 1, 100)
-    key = cursorCodec.decodeOrDefault(cursor)  # {created_at, post_id}
+    size = clamp(limit, 1, 100)
+    rows = momentRepository.ListByAuthor(authorId, cursor, size + 1)  # createdAt DESC
 
-    rows = postRepository.listByAuthorDesc(
-      targetUserId,
-      key.created_at,
-      key.post_id,
-      limit + 1
-    )
-
-    hasMore = length(rows) > limit
-    pageRows = takeFirst(rows, limit)
-    items = mapToPostView(pageRows)
-
+    hasMore = length(rows) > size
+    pageRows = takeFirst(rows, size)
     nextCursor = null
     if hasMore and length(pageRows) > 0:
       last = pageRows[length(pageRows) - 1]
-      nextCursor = cursorCodec.encode(last.created_at, last.post_id)
+      nextCursor = encodeCursor(last.created_at, last.post_id)
 
-    return PageResult(items, nextCursor, hasMore)
+    return PageResult(pageRows, nextCursor, hasMore)
 }

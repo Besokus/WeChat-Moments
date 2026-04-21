@@ -1,59 +1,49 @@
-﻿# FriendService core pseudocode
+﻿# FriendService pseudocode
 
 TYPE Result {
   success: bool
   message: string
 }
 
-TYPE FriendListResult {
-  friend_ids: list<long>
+TYPE PageResult<T> {
+  items: list<T>
+  next_cursor: string?
+  has_more: bool
 }
 
 SERVICE FriendService {
   DEPENDS ON UserRepository
-  DEPENDS ON FriendshipRepository
+  DEPENDS ON FriendRepository
 
-  # Function: addFriend(userId, friendId)
-  # purpose: create bidirectional friendship using two directed edges.
-  # input: userId, friendId
-  # output: Result
-  # complexity intuition: O(1) with indexed point lookups/writes.
-  # scale notes: use unique (user_id, friend_id) for idempotency and consistency.
+  # 职责：建立双向好友关系（两条单向边）。
   function addFriend(userId: long, friendId: long) -> Result:
-    if userId <= 0 or friendId <= 0:
-      return Result(false, "invalid id")
-    if userId == friendId:
-      return Result(false, "cannot add self")
+    if userId <= 0 or friendId <= 0 or userId == friendId:
+      return Result(false, "invalid request")
 
-    user = userRepository.getById(userId)
-    friend = userRepository.getById(friendId)
-    if user is null or friend is null:
+    if userRepository.getById(userId) is null or userRepository.getById(friendId) is null:
       return Result(false, "user not found")
-    if user.status != ACTIVE or friend.status != ACTIVE:
-      return Result(false, "user not available")
 
-    if friendshipRepository.exists(userId, friendId):
+    if friendRepository.Exists(userId, friendId):
       return Result(true, "already friend")
 
-    # write two directed edges: A->B and B->A
-    friendshipRepository.saveEdge(userId, friendId, ACTIVE, now())
-    friendshipRepository.saveEdge(friendId, userId, ACTIVE, now())
+    friendRepository.Insert(userId, friendId, ACTIVE, now())
+    friendRepository.Insert(friendId, userId, ACTIVE, now())
     return Result(true, "ok")
 
-  # Function: listFriends(userId)
-  # purpose: list all active friends for a user.
-  # input: userId
-  # output: FriendListResult
-  # complexity intuition: O(F), F is friend count (<= 5000).
-  # scale notes: always read by user_id index prefix; no graph traversal.
-  function listFriends(userId: long) -> FriendListResult:
+  # 职责：按 cursor + limit 分页查询某用户好友列表。
+  function listFriends(userId: long, cursor: string?, limit: int) -> PageResult<Friendship>:
     if userId <= 0:
-      return FriendListResult([])
+      return PageResult([], null, false)
 
-    edges = friendshipRepository.listByUser(userId)
-    friendIds = []
-    for edge in edges:
-      if edge.status == ACTIVE:
-        friendIds.append(edge.friend_id)
-    return FriendListResult(friendIds)
+    size = clamp(limit, 1, 100)
+    rows = friendRepository.ListByUser(userId, cursor, size + 1)
+
+    hasMore = length(rows) > size
+    pageRows = takeFirst(rows, size)
+    nextCursor = null
+    if hasMore and length(pageRows) > 0:
+      last = pageRows[length(pageRows) - 1]
+      nextCursor = encodeCursor(last.created_at, last.friend_id)
+
+    return PageResult(pageRows, nextCursor, hasMore)
 }
