@@ -1,0 +1,25 @@
+﻿# MomentController pseudocode
+
+TYPE MomentPageResponse {
+  items: list<Post>
+  next_cursor: string?
+  has_more: bool
+}
+
+CONTROLLER MomentController {
+  DEPENDS ON MomentService
+
+  # 处理发布动态请求并调用 MomentService.publishMoment。
+  function publishMoment(req) -> PublishResult:
+    userId = req.user_id
+    content = req.content
+    return momentService.publishMoment(userId, content)
+
+  # 处理个人动态分页请求并调用 MomentService.listUserMoments。
+  function listUserMoments(req) -> MomentPageResponse:
+    authorId = req.author_id
+    cursor = req.cursor
+    limit = req.limit
+    page = momentService.listUserMoments(authorId, cursor, limit)
+    return MomentPageResponse(page.items, page.next_cursor, page.has_more)
+}

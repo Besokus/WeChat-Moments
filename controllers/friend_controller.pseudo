@@ -1,0 +1,25 @@
+﻿# FriendController pseudocode
+
+TYPE FriendPageResponse {
+  items: list<Friendship>
+  next_cursor: string?
+  has_more: bool
+}
+
+CONTROLLER FriendController {
+  DEPENDS ON FriendService
+
+  # 处理添加好友请求并调用 FriendService.addFriend。
+  function addFriend(req) -> Result:
+    userId = req.user_id
+    friendId = req.friend_id
+    return friendService.addFriend(userId, friendId)
+
+  # 处理好友列表查询请求并调用 FriendService.listFriends。
+  function listFriends(req) -> FriendPageResponse:
+    userId = req.user_id
+    cursor = req.cursor
+    limit = req.limit
+    page = friendService.listFriends(userId, cursor, limit)
+    return FriendPageResponse(page.items, page.next_cursor, page.has_more)
+}

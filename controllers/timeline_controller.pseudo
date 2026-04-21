@@ -1,0 +1,19 @@
+﻿# TimelineController pseudocode
+
+TYPE TimelinePageResponse {
+  items: list<Post>
+  next_cursor: string?
+  has_more: bool
+}
+
+CONTROLLER TimelineController {
+  DEPENDS ON TimelineService
+
+  # 处理好友时间线分页请求并调用 TimelineService.listFriendMoments。
+  function listFriendMoments(req) -> TimelinePageResponse:
+    viewerId = req.viewer_id
+    cursor = req.cursor
+    limit = req.limit
+    page = timelineService.listFriendMoments(viewerId, cursor, limit)
+    return TimelinePageResponse(page.items, page.next_cursor, page.has_more)
+}
