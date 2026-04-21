@@ -42,3 +42,18 @@
   - files: domain/friend_service.pseudo, domain/moment_service.pseudo, domain/feed_service.pseudo, domain/timeline_service.pseudo
   - checks: required TimelineService flow steps present
   - next: wait for next layer request
+
+- [
+2026-04-21 22:57:13
+] Added controller-layer pseudocode only.
+  - files: controllers/friend_controller.pseudo, controllers/moment_controller.pseudo, controllers/timeline_controller.pseudo
+  - validation: read-back completed
+  - next: wait for user review / commit instruction
+
+- [
+2026-04-21 23:08:06
+] Converged timeline architecture to FeedInbox + fan-out on write.
+  - files: storage/repositories.pseudo, storage/cursor.pseudo, storage/id_generator.pseudo, domain/moment_service.pseudo, domain/timeline_service.pseudo, domain/feed_service.pseudo, interfaces/moment_api.pseudo, interfaces/feed_api.pseudo, flows/*.pseudo, docs/architecture.md
+  - validation: pending read-back checks
+  - next: verify no ListRecentByAuthors remains
+- [2026-04-21 23:09:00] Validation complete for timeline convergence.   - checks: active repository/service/flow files no longer expose ListRecentByAuthors as formal path   - checks: publishMoment writes FeedInbox; listFriendMoments reads FeedInbox and batch loads Post   - note: ListRecentByAuthors only remains in historical findings/progress log text

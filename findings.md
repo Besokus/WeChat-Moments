@@ -47,4 +47,16 @@
 ## 2026-04-21 Service层重写
 - 已按要求生成 FriendService、MomentService、TimelineService 主流程伪代码。
 - 每个方法前均添加一句职责说明。
+
 - listFriendMoments(viewerId, cursor, limit) 明确包含：查好友、提取friendIds、分页拉取最近动态、按createdAt倒序、返回PageResult。
+
+## 2026-04-21 Controller层生成
+- 新增 FriendController、MomentController、TimelineController 三个伪代码控制器。
+- 控制器仅体现请求参数提取与 service 调用，不包含 HTTP 框架细节。
+- 命名统一：addFriend/listFriends、publishMoment/listUserMoments、listFriendMoments。
+
+## 2026-04-21 时间线架构收敛修复
+- 结论：不需要同时保留 FeedInbox 写扩散与 friendIds 读时聚合两套正式路径。
+- 原因：在 10M+ 用户、最多 5000 好友、人均 100 动态约束下，读时聚合会带来跨索引读取、排序和尾延迟风险。
+- 修复：正式路径统一为 publishMoment 写 Post 后 fan-out 写 FeedInbox；listFriendMoments 从 FeedInbox 分页读取并批量回查 Post。
+- 已移除 MomentRepository.ListRecentByAuthors 作为正式仓储能力，避免误用为主路径。

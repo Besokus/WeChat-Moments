@@ -42,3 +42,8 @@
 2026-04-21 22:38:45
 - Phase 4: completed (final deliverable spec documented).
 - Output now includes explicit Definition of Success and per-module acceptance criteria under 10M+/5000/100 constraints.
+
+## Status Update 
+2026-04-21 23:08:07
+- Phase: architecture convergence completed in working tree.
+- Formal timeline path is now FeedInbox read path; friendIds-based recent dynamic aggregation was removed from repository/service formal path.
