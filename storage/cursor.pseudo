@@ -12,11 +12,15 @@ TYPE PageResult<T> {
 }
 
 MODULE CursorCodec {
-  # Encode stable sorting keys, normally (created_at, post_id).
+  # Encode stable sorting keys as (created_at, post_id).
   Encode(created_at: timestamp, post_id: long) -> string
 
   # Decode and validate cursor format/version.
   Decode(cursor: string?) -> map<string, any>
 
   ValidateLimit(limit: int, default_limit: int, max_limit: int) -> int
+
+  # Stable pagination predicate rule:
+  # next page WHERE created_at < last.created_at
+  # OR (created_at = last.created_at AND post_id < last.post_id).
 }

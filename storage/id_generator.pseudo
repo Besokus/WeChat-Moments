@@ -2,8 +2,10 @@
 
 INTERFACE IdGenerator {
   NextPostId() -> long
+  NextOutboxEventId() -> long
 }
 
 # Contract
 # - post_id must be unique globally.
-# - created_at + post_id is used as the stable cursor ordering key.
+# - event_id must be unique globally for outbox processing.
+# - created_at + post_id is used as stable cursor ordering key.
