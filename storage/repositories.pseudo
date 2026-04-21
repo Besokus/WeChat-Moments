@@ -24,7 +24,7 @@ TYPE OutboxEvent {
 TYPE IdempotencyRecord {
   op_name: string
   request_id: string
-  result_ref: string?
+  result_ref: string?       # publishMoment stores post_id here
   created_at: timestamp
 }
 
@@ -35,20 +35,22 @@ INTERFACE FriendRepository {
   # cursor + limit pagination by user
   ListByUser(user_id: long, cursor: string?, limit: int, route: RouteContext) -> list<Friendship>
 
-  # repair path for one-way edge anomalies
-  EnsureEdgePair(user_id: long, friend_id: long, created_at: timestamp) -> void
+  # persisted repair task for one-way edge anomalies; worker must upsert both edges idempotently.
+  EnqueueEdgePairRepair(user_id: long, friend_id: long, created_at: timestamp) -> void
 }
 
 INTERFACE MomentRepository {
   Get(post_id: long, route: RouteContext) -> Post?
 
-  # MUST dedupe post_ids and group by shard key inside repository.
+  # MUST dedupe post_ids and group by post_id shard key inside repository.
+  # post_id must be globally unique and routable through id bits or metadata mapping.
   BatchGetByPostIds(post_ids: list<long>) -> list<Post>
 
   # cursor + limit pagination by one author
   ListByAuthor(author_id: long, cursor: string?, limit: int, route: RouteContext) -> list<Post>
 
-  # atomic boundary for reliability: Post + Outbox + Idempotency
+  # atomic boundary for reliability: Post + Outbox + Idempotency.
+  # publishMoment idempotency result_ref must be post.post_id.
   InsertPostWithOutboxAndIdempotency(
     post: Post,
     event: OutboxEvent,
@@ -69,7 +71,7 @@ INTERFACE FeedInboxRepository {
   # cursor + limit pagination by viewer inbox, ordered by created_at desc
   ListByUser(user_id: long, cursor: string?, limit: int, route: RouteContext) -> list<FeedInbox>
 
-  # data lifecycle for long-term storage/index control
+  # V1 only guarantees recent timeline within retention; older history is outside this project scope.
   DeleteBefore(user_id: long, expire_before: timestamp, route: RouteContext) -> int
   DeleteOldestExceed(user_id: long, keep_rows: int, route: RouteContext) -> int
 }

@@ -7,5 +7,6 @@ INTERFACE IdGenerator {
 
 # Contract
 # - post_id must be unique globally.
+# - post_id must be routable to the Post shard through id bits or metadata mapping.
 # - event_id must be unique globally for outbox processing.
 # - created_at + post_id is used as stable cursor ordering key.

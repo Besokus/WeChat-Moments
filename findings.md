@@ -98,3 +98,26 @@
 - Retention 补强：新增 FeedRetentionFlow，硬性约束 365 天保留与每用户 20000 行上限。
 - 一致性补强：FriendService 在双边写失败时触发 EnsureEdgePair 修复入口。
 - 文档补强：technical-architecture 与 final-delivery-spec 新增高并发强约束验收条款。
+
+## 
+2026-04-22 00:41:20
+ AGENTS 上下文管理规则更新
+- 新增第 21 节：Context 管理与 Skills 触发规则。
+- 明确默认基线为 planning-with-files。
+- 补充 context-fundamentals / optimization / compression / degradation / filesystem-context 的触发条件与执行顺序。
+
+## 
+2026-04-22 00:43:08
+ 技术文档维护（本轮完善）
+- 已将本轮架构改进写入 technical-architecture：时间线读放大治理、链路稳定性增强、路径唯一性约束。
+- 已将本轮边界优化写入 technical-architecture：仅伪代码交付、禁止读扩散回退、禁止深分页 offset 默认、禁止全表扫描。
+- 已在变更记录补充 2026-04-22 条目，便于后续追踪与面试复盘。
+
+## 2026-04-22 最终评审缺口修复
+- 幂等返回缺口：publishMoment 已改为从 IdempotencyRecord.result_ref 返回原始 post_id，重复请求不再返回 0。
+- fan-out 批量缺口：FanoutWorker 已改为按最终 FeedInbox item 数切分，避免 friend chunk * event count 造成批量失控。
+- Timeline 缺失 post 缺口：TimelineService 已增加 overfetch，遇到缺失 post 时继续消耗后续 inbox 行尽量补足页面。
+- 好友修复缺口：EnsureEdgePair 替换为 EnqueueEdgePairRepair，并新增 RepairFriendshipEdgePairFlow 表达持久化补偿。
+- 分片路由缺口：IdGenerator 与 MomentRepository 明确 post_id 必须可路由到 Post 分片。
+- 交付边界缺口：文档明确 FeedInbox V1 只保证 retention 窗口内的近期时间线。
+- 容量证明缺口：文档新增 required_fanout_write_capacity >= publish_qps * avg_friend_count。

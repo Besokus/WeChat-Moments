@@ -38,8 +38,8 @@ SERVICE FriendService {
       friendRepository.UpsertEdge(userId, friendId, ACTIVE, now(), routeA)
       friendRepository.UpsertEdge(friendId, userId, ACTIVE, now(), routeB)
     catch err:
-      # 双边写失败时走修复入口，避免长期单边关系。
-      friendRepository.EnsureEdgePair(userId, friendId, now())
+      # 持久化补偿任务，异步补齐双向边，避免长期单边关系。
+      friendRepository.EnqueueEdgePairRepair(userId, friendId, now())
       return Result(false, "partial write, repair scheduled")
 
     idempotencyRepository.Save("addFriend", requestId, toString(userId) + ":" + toString(friendId))

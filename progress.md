@@ -100,3 +100,22 @@
   - files: storage/repositories.pseudo, domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, domain/friend_service.pseudo, flows/reconcile_feed_inbox_flow.pseudo, flows/feed_retention_flow.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md
   - validation: 关键约束关键词检查通过（分区消费/背压/去重降级/retention/SLA）
   - next: 根据你指令执行 commit 或继续补压测口径
+
+- [
+2026-04-22 00:41:07
+] Updated AGENTS.md with context-management section.
+  - file: AGENTS.md
+  - change: added section 21 (skills-based context triggers and execution guardrails)
+  - next: follow new trigger rules in subsequent turns
+
+- [
+2026-04-22 00:43:09
+] Maintained technical architecture doc for current round.
+  - file: docs/technical-architecture.md
+  - changes: changelog + architecture improvement notes + boundary optimization notes
+  - validation: read-back pending
+
+- [2026-04-22 00:46:43] 完成最终评审缺口修复。
+  - files: domain/moment_service.pseudo, domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, domain/friend_service.pseudo, storage/repositories.pseudo, storage/id_generator.pseudo, storage/cursor.pseudo, flows/publish_moment_flow.pseudo, flows/repair_friendship_flow.pseudo, flows/feed_retention_flow.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md
+  - validation: pending keyword verification
+  - next: run rg checks for idempotent post_id, item-bounded fanout, retention boundary, capacity formula

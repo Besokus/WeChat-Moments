@@ -1,0 +1,9 @@
+﻿# Friendship repair flow skeleton (pseudo)
+
+FLOW RepairFriendshipEdgePairFlow(now_time: timestamp) {
+  STEP 1: scan persisted edge-pair repair tasks by route partition
+  STEP 2: for each task, upsert user_id -> friend_id with unique (user_id, friend_id)
+  STEP 3: upsert friend_id -> user_id with unique (user_id, friend_id)
+  STEP 4: mark task as SUCCEEDED when both idempotent upserts complete
+  STEP 5: retry failed tasks with backoff; move to dead-letter after max retry
+}

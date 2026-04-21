@@ -8,4 +8,5 @@ FLOW FeedRetentionFlow(now_time: timestamp) {
   STEP 2: for each user, delete inbox rows older than now_time - RETAIN_DAYS
   STEP 3: for each user, if inbox rows still exceed MAX_INBOX_ROWS_PER_USER, delete oldest exceeded rows
   STEP 4: write retention metrics (deleted_rows, affected_users, partition)
+  STEP 5: document that V1 timeline only guarantees data inside this retention window
 }

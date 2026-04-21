@@ -51,17 +51,20 @@ SERVICE FanoutWorkerService {
 
       for friendGroup in friendGroups:
         groupRoute = RouteContext(friendGroup.route_key, null)
-        chunks = splitIntoChunks(friendGroup.rows, CHUNK_SIZE)
+        items = []
 
-        for chunk in chunks:
-          items = []
-          for friendRow in chunk:
-            for event in executable:
-              items.append(
-                FeedInbox(friendRow.friend_id, event.payload["created_at"], event.aggregate_id, authorId)
-              )
+        for friendRow in friendGroup.rows:
+          for event in executable:
+            items.append(
+              FeedInbox(friendRow.friend_id, event.payload["created_at"], event.aggregate_id, authorId)
+            )
 
-          # BatchUpsertByRoute 幂等，重复重放不重复插入。
+            # 按最终 FeedInbox item 数切分，避免 friend chunk * event count 放大。
+            if length(items) >= CHUNK_SIZE:
+              feedInboxRepository.BatchUpsertByRoute(groupRoute, items, CHUNK_SIZE)
+              items = []
+
+        if length(items) > 0:
           feedInboxRepository.BatchUpsertByRoute(groupRoute, items, CHUNK_SIZE)
 
       for event in executable:

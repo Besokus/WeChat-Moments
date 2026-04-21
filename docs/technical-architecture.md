@@ -85,6 +85,8 @@
 - 本项目是伪代码架构交付，不等于生产可运行系统。
 - 不覆盖评论、点赞、推荐流、审核、权限细分、多媒体。
 - 对超高活跃用户（明星场景）仅给出演进方向，不在本期实现。
+- 不引入控制器/框架/真实 SQL 实现；仅维护模型、仓储契约、服务流程与文档一致性。
+- 时间线正式路径唯一：`FeedInbox -> BatchGet(Post)`；禁止回退到读时多好友动态归并。
 
 ## 8. 演进方向（仅记录，不实现）
 - 异步 fan-out（队列化）
@@ -107,6 +109,7 @@
 
 ## 10. 变更记录
 - `2026-04-21`：初始化文档；确认正式时间线路径为 `FeedInbox + fan-out on write`；收敛接口与服务契约一致性。
+- `2026-04-22`：补充高并发治理条款（分区消费/背压阈值/热点合并/retention）；新增时间线读放大优化（post_id 去重、缺失降级跳过）；同步固化技术边界（仅伪代码、禁止读扩散回退）。
 
 ## 11. 问题清单与优化实施计划（高并发/高负载）
 ### 11.1 P0 优化（必须完成）
@@ -150,3 +153,22 @@
 - 时间线读放大治理：请求内 post_id 去重，仓储内部强制按分片聚合批读；缺失 post 走降级跳过，不阻塞整页返回。
 - 恢复 SLA：对账任务扫描周期 5 分钟，最大允许恢复窗口 15 分钟，超过重试上限进入 dead-letter。
 - 数据生命周期硬规则：FeedInbox 执行 365 天保留策略，并强制每用户最大 20000 行上限（超出删除最老数据）。
+
+## 13. 本轮修改完善（架构改进与边界优化）
+### 13.1 架构改进
+- 时间线读取链路完成稳定性增强：分页上限常量化、post_id 去重后批量回查、缺失 post 单条降级。
+- 读路径继续保持轻量稳定：先读 `FeedInbox` 再批量回查 `Post`，不引入读时 fan-in 全量归并。
+- 与高并发治理条款保持一致：优化点均落在既有仓储契约与服务伪代码边界内。
+
+### 13.2 边界优化
+- 技术交付边界进一步收敛为“伪代码 + 架构文档 + 约束说明”，不扩展运行时工程实现。
+- 明确禁止项升级为维护规则：禁止全表扫描、禁止深分页 offset 默认方案、禁止时间线读扩散。
+- 文档维护触发器生效：当模型/主流程/索引/边界变化时，必须同步更新本技术文档与变更记录。
+
+## 13. 2026-04-22 最终缺口修复说明
+- 幂等返回语义：publishMoment 的 IdempotencyRecord.result_ref 必须保存 post_id；重复 request_id 必须返回原始 post_id，禁止返回 0。
+- fan-out 批量边界：FanoutWorker 按最终 FeedInbox item 数切分，公式为每批 items <= CHUNK_SIZE，避免 friend chunk * event count 放大。
+- 容量公式：required_fanout_write_capacity >= publish_qps * avg_friend_count；当实际能力低于该值时，系统必须承认 outbox 延迟会上升，并依赖背压阈值保护写链路。
+- FeedInbox 历史边界：V1 只保证 retention 窗口内的近期好友时间线；超过 retention 的历史归档查询不属于当前最小闭环。
+- 好友修复语义：EnqueueEdgePairRepair 是持久化补偿任务入口，由 RepairFriendshipEdgePairFlow 异步幂等补齐双向边。
+- 分页语义：Post/FeedInbox cursor 使用 created_at + post_id；Friendship cursor 使用 created_at + friend_id。

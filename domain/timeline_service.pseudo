@@ -11,6 +11,7 @@ SERVICE TimelineService {
   DEPENDS ON MomentRepository
 
   CONST MAX_PAGE_SIZE = 100
+  CONST MAX_INBOX_SCAN_FACTOR = 3
 
   # 职责：从 FeedInbox 分页读取好友时间线，保持顺序并批量回查 Post。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
@@ -19,13 +20,13 @@ SERVICE TimelineService {
 
     size = clamp(limit, 1, MAX_PAGE_SIZE)
     route = RouteContext(viewerId, null)
-    inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, size + 1, route)
+    scanLimit = size * MAX_INBOX_SCAN_FACTOR + 1
+    inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, scanLimit, route)
 
     hasMore = length(inboxRows) > size
-    pageInboxRows = takeFirst(inboxRows, size)
 
     postIds = []
-    for row in pageInboxRows:
+    for row in inboxRows:
       postIds.append(row.post_id)
 
     # 读放大治理：请求内先去重，再由仓储内部按 post_id 分片聚合批读。
@@ -33,17 +34,21 @@ SERVICE TimelineService {
     postMap = toMap(momentRepository.BatchGetByPostIds(uniquePostIds), key = post_id)
 
     items = []
-    for row in pageInboxRows:
+    consumedRows = []
+    for row in inboxRows:
+      consumedRows.append(row)
       post = postMap[row.post_id]
       if post is null:
-        # 降级策略：遇到缺失 post 时跳过当前条目，避免整页失败。
+        # 降级策略：缺失 post 时继续消耗后续 inbox 行，尽量补足 page size。
         continue
       items.append(post)
+      if length(items) >= size:
+        break
 
     nextCursor = null
-    if hasMore and length(pageInboxRows) > 0:
-      last = pageInboxRows[length(pageInboxRows) - 1]
+    if length(consumedRows) > 0 and (hasMore or length(items) >= size):
+      last = consumedRows[length(consumedRows) - 1]
       nextCursor = encodeCursor(last.created_at, last.post_id)
 
-    return PageResult(items, nextCursor, hasMore)
+    return PageResult(items, nextCursor, nextCursor is not null)
 }

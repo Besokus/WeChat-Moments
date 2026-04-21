@@ -117,3 +117,11 @@
 3. 时间线读取必须包含 post_id 去重与缺失 post 降级策略。
 4. 对账与恢复必须有明确 SLA（扫描周期、最大恢复时长、dead-letter 条件）。
 5. FeedInbox 必须有硬性 retention 规则（时间窗口 + 每用户行数上限）。
+
+## 12. 最终有条件通过修正项
+本项目只有在以下修正项全部满足时，才视为当前题目的最终可交付版本：
+1. publishMoment 重复 request_id 必须返回原 post_id。
+2. fan-out worker 必须按最终 FeedInbox item 数切分批写。
+3. FeedInbox 时间线只承诺 retention 窗口内的近期数据，历史归档不属于 V1。
+4. fan-out 容量必须用 required_fanout_write_capacity >= publish_qps * avg_friend_count 表达。
+5. 好友双边修复必须是持久化补偿任务，而不是仅同步兜底调用。
