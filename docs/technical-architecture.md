@@ -1,0 +1,109 @@
+﻿# 朋友圈最小闭环项目技术文档（持续维护）
+
+## 1. 文档定位
+- 本文档是项目技术架构与选型依据的唯一汇总入口。
+- 目标：在 4 小时内交付“可讲清楚、可复用、可持续维护”的最小朋友圈伪代码方案。
+- 范围：只覆盖好友系统、发布动态、查询个人动态、查询好友时间线。
+
+## 2. 约束与目标
+### 2.1 业务目标
+- 提供微信朋友圈最小闭环能力，不扩展到完整社交平台。
+
+### 2.2 规模约束
+- 用户量级：10M+
+- 单用户好友上限：5000
+- 平均每用户动态数：100
+
+### 2.3 技术约束
+- 仅输出伪代码与架构说明，不实现真实框架/数据库/中间件。
+- 所有列表查询必须支持 `cursor + limit`。
+- 禁止读时聚合 5000 好友全量动态后排序。
+- 禁止全表扫描与深分页默认 `offset`。
+
+## 3. 架构总览
+### 3.1 分层
+- `models`：数据模型与索引说明
+- `repositories`：存储访问契约（接口级，不含具体 DB 实现）
+- `services`：核心业务主流程
+- `controllers`：请求参数进入 service 的薄层转发
+- `flows`：端到端流程骨架（用于讲解/评审）
+- `docs`：架构原则、交付标准、技术决策
+
+### 3.2 核心模型
+- `User`
+- `Friendship`（双向关系采用两条单向边）
+- `Post`
+- `FeedInbox`（时间线轻量索引）
+
+### 3.3 正式时间线路径
+- 写路径：`publishMoment -> Post -> fan-out 写 FeedInbox`
+- 读路径：`listFriendMoments -> FeedInbox 分页 -> batch 回查 Post`
+
+## 4. 关键技术选型与取舍
+### 4.1 时间线方案：`fan-out on write`
+- 选择原因：
+  - 在“5000 好友上限”下，写扩散成本可预期。
+  - 将复杂度从读路径前移到写路径，读延迟更稳定。
+- 不选原因（读时聚合）：
+  - 潜在候选集可达 `5000 * 100 = 50万`。
+  - 跨分区读取与排序开销高，尾延迟不可控。
+
+### 4.2 分页方案：`cursor + limit`
+- 选择原因：
+  - 对大数据量和深分页更稳定。
+  - 可配合索引 `(created_at, post_id)` 实现有序连续翻页。
+- 不选原因（offset 深分页）：
+  - 偏移量越大，扫描/跳过成本越高。
+
+### 4.3 数据存储策略：FeedInbox 只存轻量引用
+- 只存：`user_id, post_id, author_id, created_at`
+- 不存：完整正文
+- 原因：降低写扩散存储放大与一致性维护复杂度。
+
+## 5. 模块职责与达标线
+### 5.1 Friend 模块
+- 职责：建立双向好友关系、按用户分页读取好友列表。
+- 达标：`addFriend` 写两条单向边；`listFriends` 支持 `cursor + limit`。
+
+### 5.2 Moment/Post 模块
+- 职责：发布动态、按作者分页读取个人动态。
+- 达标：`publishMoment` 完成写 Post 与 fan-out；`listUserMoments` 倒序分页。
+
+### 5.3 Timeline 模块
+- 职责：从 viewer 视角分页读取好友动态。
+- 达标：必须走 `FeedInbox -> BatchGet(Post)`，并返回 `PageResult`。
+
+## 6. 索引与分片建议（伪设计）
+- `Friendship`: `UK(userId, friendId)` + `IDX(userId, createdAt DESC, friendId)`
+- `Post`: `PK(postId)` + `IDX(authorId, createdAt DESC, postId)`
+- `FeedInbox`: `PK(userId, createdAt DESC, postId)`（可选 `UK(userId, postId)`）
+- 分片建议：
+  - `Friendship`、`FeedInbox` 优先按 `userId` 路由
+  - `Post` 按 `authorId` 或可路由主键策略
+
+## 7. 风险与边界
+- 本项目是伪代码架构交付，不等于生产可运行系统。
+- 不覆盖评论、点赞、推荐流、审核、权限细分、多媒体。
+- 对超高活跃用户（明星场景）仅给出演进方向，不在本期实现。
+
+## 8. 演进方向（仅记录，不实现）
+- 异步 fan-out（队列化）
+- 批量写入优化
+- 热点用户 push/pull 混合策略
+- Inbox 压缩与冷热分层
+
+## 9. 持续维护机制
+### 9.1 更新触发条件
+- 任一核心模型字段变化（User/Friendship/Post/FeedInbox）
+- 任一主流程变化（publish/listUser/listTimeline）
+- 时间线策略变化（写扩散/读聚合）
+- 分页与索引策略变化
+- 交付边界变化（新增或移除能力）
+
+### 9.2 更新要求
+- 更新“架构总览”“技术选型与取舍”“模块达标线”中的对应章节。
+- 在“变更记录”追加一条说明：改了什么、为什么改、影响范围。
+- 若变更与最终交付标准冲突，必须同步更新 `docs/final-delivery-spec.md`。
+
+## 10. 变更记录
+- `2026-04-21`：初始化文档；确认正式时间线路径为 `FeedInbox + fan-out on write`；收敛接口与服务契约一致性。
