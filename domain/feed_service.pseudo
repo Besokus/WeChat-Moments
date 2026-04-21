@@ -1,0 +1,63 @@
+﻿# FeedService core pseudocode
+
+TYPE TimelineItem {
+  post_id: long
+  author_id: long
+  content_text: string
+  created_at: timestamp
+}
+
+TYPE PageResult<T> {
+  items: list<T>
+  next_cursor: string?
+  has_more: bool
+}
+
+SERVICE FeedService {
+  DEPENDS ON FeedInboxRepository
+  DEPENDS ON PostRepository
+  DEPENDS ON CursorCodec
+
+  # Function: listFriendTimeline(viewerUserId, cursor, size)
+  # purpose: read viewer timeline from precomputed FeedInbox and batch load post details.
+  # input: viewerUserId, cursor, size
+  # output: PageResult<TimelineItem>
+  # complexity intuition: O(size) inbox scan + O(size) batch post fetch.
+  # scale notes: do NOT fan-in query up to 5000 friends at read time.
+  function listFriendTimeline(viewerUserId: long, cursor: string?, size: int) -> PageResult<TimelineItem>:
+    if viewerUserId <= 0:
+      return PageResult([], null, false)
+
+    limit = clamp(size, 1, 100)
+    key = cursorCodec.decodeOrDefault(cursor)  # {created_at, post_id}
+
+    inboxRows = feedInboxRepository.listByUserDesc(
+      viewerUserId,
+      key.created_at,
+      key.post_id,
+      limit + 1
+    )
+
+    hasMore = length(inboxRows) > limit
+    pageRows = takeFirst(inboxRows, limit)
+
+    postIds = []
+    for row in pageRows:
+      postIds.append(row.post_id)
+
+    postMap = postRepository.batchGetAsMap(postIds)  # key: post_id
+
+    items = []
+    for row in pageRows:
+      post = postMap[row.post_id]
+      if post is null:
+        continue
+      items.append(TimelineItem(post.post_id, post.author_id, post.content_text, row.created_at))
+
+    nextCursor = null
+    if hasMore and length(pageRows) > 0:
+      last = pageRows[length(pageRows) - 1]
+      nextCursor = cursorCodec.encode(last.created_at, last.post_id)
+
+    return PageResult(items, nextCursor, hasMore)
+}

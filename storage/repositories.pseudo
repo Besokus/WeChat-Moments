@@ -1,0 +1,23 @@
+﻿# Repository contracts (pseudo)
+
+INTERFACE FriendRepository {
+  InsertEdge(user_id: long, friend_id: long, created_at: timestamp) -> void
+  ExistsEdge(user_id: long, friend_id: long) -> bool
+  ListByUser(user_id: long, cursor: string?, limit: int) -> list<FriendEdge>
+}
+
+INTERFACE MomentRepository {
+  Insert(moment: Moment) -> void
+  BatchGetByIds(moment_ids: list<long>) -> list<Moment>
+  ListByAuthor(author_id: long, cursor: string?, limit: int) -> list<Moment>
+}
+
+INTERFACE FeedInboxRepository {
+  BatchInsert(owner_user_id: long, items: list<FeedInboxItem>) -> void
+  ListByOwner(owner_user_id: long, cursor: string?, limit: int) -> list<FeedInboxItem>
+}
+
+# Index expectations
+# - FriendEdge: (user_id, friend_id), (user_id, created_at DESC)
+# - Moment: (author_id, seq_id DESC)
+# - FeedInboxItem: (owner_user_id, seq_id DESC)

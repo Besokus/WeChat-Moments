@@ -1,0 +1,91 @@
+﻿# PostService core pseudocode
+
+TYPE PublishResult {
+  post_id: long
+  success: bool
+  message: string
+}
+
+TYPE PostView {
+  post_id: long
+  author_id: long
+  content_text: string
+  created_at: timestamp
+}
+
+TYPE PageResult<T> {
+  items: list<T>
+  next_cursor: string?
+  has_more: bool
+}
+
+SERVICE PostService {
+  DEPENDS ON UserRepository
+  DEPENDS ON FriendshipRepository
+  DEPENDS ON PostRepository
+  DEPENDS ON FeedInboxRepository
+  DEPENDS ON IdGenerator
+  DEPENDS ON CursorCodec
+
+  # Function: publishPost(userId, content)
+  # purpose: create post and fan out lightweight references to friend inboxes.
+  # input: userId, content
+  # output: PublishResult
+  # complexity intuition: O(F), F is friend count.
+  # scale notes: use batch writes; real systems should prefer async fan-out.
+  function publishPost(userId: long, content: string) -> PublishResult:
+    if userId <= 0:
+      return PublishResult(0, false, "invalid user")
+    if content is null or trim(content) == "":
+      return PublishResult(0, false, "empty content")
+
+    user = userRepository.getById(userId)
+    if user is null or user.status != ACTIVE:
+      return PublishResult(0, false, "user not available")
+
+    postId = idGenerator.nextPostId()
+    createdAt = now()
+    postRepository.save(Post(postId, userId, content, createdAt))
+
+    friends = friendshipRepository.listByUser(userId)
+    inboxItems = []
+    for edge in friends:
+      if edge.status != ACTIVE:
+        continue
+      inboxItems.append(FeedInbox(edge.friend_id, createdAt, postId, userId))
+
+    feedInboxRepository.batchSave(inboxItems)
+    # note: in production, fan-out should be async via queue for lower tail latency.
+    return PublishResult(postId, true, "ok")
+
+  # Function: listUserPosts(targetUserId, cursor, size)
+  # purpose: query one user's posts in reverse chronological order with cursor paging.
+  # input: targetUserId, cursor, size
+  # output: PageResult<PostView>
+  # complexity intuition: O(size) with (author_id, created_at DESC, post_id) index.
+  # scale notes: prefer cursor(created_at, post_id) over deep offset paging.
+  function listUserPosts(targetUserId: long, cursor: string?, size: int) -> PageResult<PostView>:
+    if targetUserId <= 0:
+      return PageResult([], null, false)
+
+    limit = clamp(size, 1, 100)
+    key = cursorCodec.decodeOrDefault(cursor)  # {created_at, post_id}
+
+    rows = postRepository.listByAuthorDesc(
+      targetUserId,
+      key.created_at,
+      key.post_id,
+      limit + 1
+    )
+
+    hasMore = length(rows) > limit
+    pageRows = takeFirst(rows, limit)
+    items = mapToPostView(pageRows)
+
+    nextCursor = null
+    if hasMore and length(pageRows) > 0:
+      last = pageRows[length(pageRows) - 1]
+      nextCursor = cursorCodec.encode(last.created_at, last.post_id)
+
+    return PageResult(items, nextCursor, hasMore)
+}

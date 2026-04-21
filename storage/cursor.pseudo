@@ -1,0 +1,22 @@
+﻿# Cursor contract (pseudo)
+
+TYPE PageRequest {
+  cursor: string?
+  limit: int
+}
+
+TYPE PageResult<T> {
+  items: list<T>
+  next_cursor: string?
+  has_more: bool
+}
+
+MODULE CursorCodec {
+  # Encode stable sorting keys, e.g. (seq_id, tie_breaker_id).
+  Encode(keys: map<string, any>) -> string
+
+  # Decode and validate cursor format/version.
+  Decode(cursor: string) -> map<string, any>
+
+  ValidateLimit(limit: int, default_limit: int, max_limit: int) -> int
+}

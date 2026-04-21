@@ -1,0 +1,11 @@
+﻿# Publish moment flow skeleton (pseudo)
+
+FLOW PublishMomentFlow(author_id: long, content_text: string) {
+  STEP 1: validate input
+  STEP 2: create moment_id and seq_id
+  STEP 3: persist moment
+  STEP 4: query friend ids of author (cursor loop if needed)
+  STEP 5: build FeedInboxItem list for each friend
+  STEP 6: batch write inbox items
+  STEP 7: return moment_id
+}

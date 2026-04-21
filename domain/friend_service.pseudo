@@ -1,0 +1,59 @@
+﻿# FriendService core pseudocode
+
+TYPE Result {
+  success: bool
+  message: string
+}
+
+TYPE FriendListResult {
+  friend_ids: list<long>
+}
+
+SERVICE FriendService {
+  DEPENDS ON UserRepository
+  DEPENDS ON FriendshipRepository
+
+  # Function: addFriend(userId, friendId)
+  # purpose: create bidirectional friendship using two directed edges.
+  # input: userId, friendId
+  # output: Result
+  # complexity intuition: O(1) with indexed point lookups/writes.
+  # scale notes: use unique (user_id, friend_id) for idempotency and consistency.
+  function addFriend(userId: long, friendId: long) -> Result:
+    if userId <= 0 or friendId <= 0:
+      return Result(false, "invalid id")
+    if userId == friendId:
+      return Result(false, "cannot add self")
+
+    user = userRepository.getById(userId)
+    friend = userRepository.getById(friendId)
+    if user is null or friend is null:
+      return Result(false, "user not found")
+    if user.status != ACTIVE or friend.status != ACTIVE:
+      return Result(false, "user not available")
+
+    if friendshipRepository.exists(userId, friendId):
+      return Result(true, "already friend")
+
+    # write two directed edges: A->B and B->A
+    friendshipRepository.saveEdge(userId, friendId, ACTIVE, now())
+    friendshipRepository.saveEdge(friendId, userId, ACTIVE, now())
+    return Result(true, "ok")
+
+  # Function: listFriends(userId)
+  # purpose: list all active friends for a user.
+  # input: userId
+  # output: FriendListResult
+  # complexity intuition: O(F), F is friend count (<= 5000).
+  # scale notes: always read by user_id index prefix; no graph traversal.
+  function listFriends(userId: long) -> FriendListResult:
+    if userId <= 0:
+      return FriendListResult([])
+
+    edges = friendshipRepository.listByUser(userId)
+    friendIds = []
+    for edge in edges:
+      if edge.status == ACTIVE:
+        friendIds.append(edge.friend_id)
+    return FriendListResult(friendIds)
+}

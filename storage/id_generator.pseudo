@@ -1,0 +1,10 @@
+﻿# ID generation contract (pseudo)
+
+INTERFACE IdGenerator {
+  NextMomentId() -> long
+  NextSeqId() -> long
+}
+
+# Contract
+# - moment_id must be unique globally.
+# - seq_id must be monotonically increasing for stable DESC pagination.

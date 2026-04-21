@@ -1,0 +1,11 @@
+﻿# Query friend feed flow skeleton (pseudo)
+
+FLOW QueryFriendFeedFlow(viewer_user_id: long, page: PageRequest) {
+  STEP 1: validate limit and decode cursor
+  STEP 2: read FeedInboxItem by (owner_user_id, seq_id DESC)
+  STEP 3: collect moment_ids from inbox items
+  STEP 4: batch load moments by ids
+  STEP 5: assemble PageResult<Moment>
+  STEP 6: encode next_cursor
+  STEP 7: return page result
+}

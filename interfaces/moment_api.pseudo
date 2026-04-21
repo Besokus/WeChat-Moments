@@ -1,0 +1,25 @@
+﻿# Moment API (pseudo)
+
+TYPE PageRequest {
+  cursor: string?
+  limit: int
+}
+
+TYPE PageResult<T> {
+  items: list<T>
+  next_cursor: string?
+  has_more: bool
+}
+
+TYPE MomentView {
+  moment_id: long
+  author_id: long
+  content_text: string
+  created_at: timestamp
+  seq_id: long
+}
+
+INTERFACE MomentAPI {
+  PublishMoment(author_id: long, content_text: string) -> long
+  ListUserMoments(author_id: long, page: PageRequest) -> PageResult<MomentView>
+}
