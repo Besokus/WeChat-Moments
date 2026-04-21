@@ -71,3 +71,20 @@
   - files: docs/technical-architecture.md, AGENTS.md
   - validation: read-back passed
   - next: keep this document updated on architecture/flow/index changes
+
+- [
+2026-04-21 23:49:19
+] Implemented reliability optimization package (P0/P1/P2).
+  - changed files: repositories/cursor/id_generator, friend/moment/timeline services, fanout worker, reconcile flow, APIs, controllers, technical-architecture doc
+  - validation: contract keywords and flow steps verified
+  - next: review and optionally split commits by module
+
+- [2026-04-21 23:54:14] 分片路由细化修复落盘。
+  - files: storage/repositories.pseudo, domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, docs/technical-architecture.md
+  - validation: 关键签名/调用替换检查通过（BatchGetByPostIds, BatchUpsertByRoute）
+  - next: 如需可按模块拆分提交 commit
+
+- [2026-04-21 23:56:30] 修复 repositories.pseudo 文本替换遗留格式问题并完成二次校验。
+  - files: storage/repositories.pseudo
+  - validation: Get-Content + rg 检查通过，无字面量换行残留
+  - next: 汇总本轮优化结果并等待是否提交

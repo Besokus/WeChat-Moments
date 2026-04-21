@@ -13,7 +13,8 @@ CONTROLLER FriendController {
   function addFriend(req) -> Result:
     userId = req.user_id
     friendId = req.friend_id
-    return friendService.addFriend(userId, friendId)
+    requestId = req.request_id
+    return friendService.addFriend(userId, friendId, requestId)
 
   # 处理好友列表查询请求并调用 FriendService.listFriends。
   function listFriends(req) -> FriendPageResponse:

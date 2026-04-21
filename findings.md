@@ -70,3 +70,15 @@
 - 新增 docs/technical-architecture.md，集中维护技术架构、选型依据、取舍和演进说明。
 - 明确了 10M+/5000/100 约束下的主路径：FeedInbox + fan-out on write。
 - 新增持续维护机制：触发条件、更新要求、变更记录规范。
+
+## 2026-04-22 高并发稳定性修复落地
+- 已将 P0/P1/P2 问题转为可执行实施计划并落地到伪代码。
+- P0：publishMoment 改为 Post+Outbox+Idempotency 原子主写；fan-out 改为异步 worker 分批幂等写入。
+- P0：addFriend / publishMoment 新增 request_id 幂等语义。
+- P1：仓储契约补充 RouteContext 分片路由；新增 ReconcileFeedInboxFlow 补偿流程。
+- P2：补充游标并发语义与 FeedInbox 生命周期接口 DeleteBefore。
+
+## 2026-04-21 分片路由细化修复
+- 为避免跨分片批读/批写歧义：MomentRepository 增加 BatchGetByPostIds（按 post_id 由仓储内部路由）。
+- FanoutWorkerService 改为先按 friend_id 路由分组，再按 chunk 批量写 FeedInbox。
+- FeedInboxRepository 写接口改为 BatchUpsertByRoute，明确批写分片边界。

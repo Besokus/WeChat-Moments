@@ -13,7 +13,8 @@ CONTROLLER MomentController {
   function publishMoment(req) -> PublishResult:
     userId = req.user_id
     content = req.content
-    return momentService.publishMoment(userId, content)
+    requestId = req.request_id
+    return momentService.publishMoment(userId, content, requestId)
 
   # 处理个人动态分页请求并调用 MomentService.listUserMoments。
   function listUserMoments(req) -> MomentPageResponse:

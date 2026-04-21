@@ -8,11 +8,11 @@ TYPE PageResult<T> {
 
 TYPE PublishResult {
   post_id: long
-  success: bool
+  accepted: bool
   message: string
 }
 
 INTERFACE MomentAPI {
-  PublishMoment(user_id: long, content_text: string) -> PublishResult
+  PublishMoment(user_id: long, content_text: string, request_id: string) -> PublishResult
   ListUserMoments(author_id: long, cursor: string?, limit: int) -> PageResult<Post>
 }

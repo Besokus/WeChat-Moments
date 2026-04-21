@@ -107,3 +107,38 @@
 
 ## 10. 变更记录
 - `2026-04-21`：初始化文档；确认正式时间线路径为 `FeedInbox + fan-out on write`；收敛接口与服务契约一致性。
+
+## 11. 问题清单与优化实施计划（高并发/高负载）
+### 11.1 P0 优化（必须完成）
+- 问题：`publishMoment` 的 Post 与 FeedInbox 非原子边界。
+- 实施：改为原子写 `Post + Outbox + Idempotency`，异步 worker 执行 fan-out。
+- 当前状态：已落地到 `MomentService` 与 `Outbox` 契约。
+
+- 问题：缺少请求级幂等，重试可能重复写。
+- 实施：`addFriend/publishMoment` 强制 `request_id`，引入 `IdempotencyRepository`。
+- 当前状态：已落地到 Friend/Moment API、Service、Repository 契约。
+
+- 问题：同步 fan-out 写放大。
+- 实施：`FanoutWorkerService` 异步消费 outbox，`BatchUpsert + chunk(200)`。
+- 当前状态：已落地伪代码。
+
+### 11.2 P1 优化（当前版本完成定义）
+- 问题：分片只在文档层，契约未体现。
+- 实施：仓储接口补充 `RouteContext(route_key)`。
+
+- 问题：缺少失败恢复机制。
+- 实施：新增 `ReconcileFeedInboxFlow`，对 FAILED/PENDING outbox 进行重放修复。
+
+- 问题：随机读放大。
+- 实施：保持 `FeedInbox -> BatchGet(Post)`，并规定“以 inbox 顺序组装返回”；后续可扩展批量局部性优化。
+
+### 11.3 P2 优化（规则化）
+- 明确游标并发语义：分页谓词固定为 `created_at < x OR (created_at = x AND post_id < y)`。
+- 明确 FeedInbox 生命周期接口：`DeleteBefore` 归档/清理入口。
+- 统一命名口径：保留 `Post` 作为数据实体，`Moment` 仅作为业务语义名。
+
+### 11.4 执行优先级
+1. 先做 P0：幂等、原子边界、异步 fan-out。
+2. 再做 P1：分片路由契约、补偿流程。
+3. 最后做 P2：游标语义、生命周期与命名规范固化。
+

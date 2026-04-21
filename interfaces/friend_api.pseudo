@@ -12,6 +12,6 @@ TYPE Result {
 }
 
 INTERFACE FriendAPI {
-  AddFriend(user_id: long, friend_id: long) -> Result
+  AddFriend(user_id: long, friend_id: long, request_id: string) -> Result
   ListFriends(user_id: long, cursor: string?, limit: int) -> PageResult<Friendship>
 }
