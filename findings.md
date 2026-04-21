@@ -38,3 +38,13 @@
 - 新增 docs/final-delivery-spec.md，明确项目成功标准与模块验收口径。
 - 重点固化了 10M+/5000/100 约束如何落到模型、访问模式与分页策略。
 - 明确读时不能动态聚合最多 5000 好友全量动态的工程原因。
+
+## 2026-04-21 Repository层更新
+- 已将 storage/repositories.pseudo 收敛为 FriendRepository 与 MomentRepository 两个接口。
+- 所有列表查询方法显式包含 cursor 与 limit。
+- 已补充按 authorId 批量查询最近动态能力：ListRecentByAuthors(author_ids, cursor, limit)。
+
+## 2026-04-21 Service层重写
+- 已按要求生成 FriendService、MomentService、TimelineService 主流程伪代码。
+- 每个方法前均添加一句职责说明。
+- listFriendMoments(viewerId, cursor, limit) 明确包含：查好友、提取friendIds、分页拉取最近动态、按createdAt倒序、返回PageResult。

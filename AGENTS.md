@@ -1,5 +1,7 @@
 ﻿# AGENTS.md
 
+**always write markdown files with Chinese**
+
 ## 1. Mission
 Build a minimal Moments/Friend Feed system in **pseudocode only**.
 

@@ -28,3 +28,17 @@
   - files: docs/final-delivery-spec.md
   - validation: content read-back completed
   - next: wait for user to choose next module
+
+- [
+2026-04-21 22:48:16
+] Updated repository pseudocode only.
+  - file: storage/repositories.pseudo
+  - checks: method set satisfies cursor+limit and batch recent-by-authors requirement
+  - note: no DB-specific implementation added
+
+- [
+2026-04-21 22:52:13
+] Rewrote service-layer pseudocode only.
+  - files: domain/friend_service.pseudo, domain/moment_service.pseudo, domain/feed_service.pseudo, domain/timeline_service.pseudo
+  - checks: required TimelineService flow steps present
+  - next: wait for next layer request
