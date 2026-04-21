@@ -82,3 +82,19 @@
 - 为避免跨分片批读/批写歧义：MomentRepository 增加 BatchGetByPostIds（按 post_id 由仓储内部路由）。
 - FanoutWorkerService 改为先按 friend_id 路由分组，再按 chunk 批量写 FeedInbox。
 - FeedInboxRepository 写接口改为 BatchUpsertByRoute，明确批写分片边界。
+
+## 
+2026-04-22 00:16:49
+ 时间线读取链路优化
+- 将 page size 上限抽为 MAX_PAGE_SIZE 常量，统一约束。
+- FeedInbox->Post 回查前新增 post_id 去重，降低重复批量读取。
+- 遇到缺失 Post 时改为跳过单条，避免整页失败。
+- 保持从 FeedInbox 读取，不引入读时按 5000 好友动态归并。
+
+## 2026-04-22 高并发治理二次修复（Karpathy最小改动）
+- Publish 路径补强：OutboxRepository 明确分区消费契约（ListActivePartitions/CountPendingByPartition/FetchPendingByPartition）与 dead-letter 入口。
+- FanoutWorker 补强：引入分区积压软硬阈值、每分区处理配额、author 短窗口合并，降低写风暴和重复好友读取。
+- Timeline 补强：请求内 post_id 去重 + 缺失 post 降级，降低随机回表放大导致的整页失败风险。
+- Retention 补强：新增 FeedRetentionFlow，硬性约束 365 天保留与每用户 20000 行上限。
+- 一致性补强：FriendService 在双边写失败时触发 EnsureEdgePair 修复入口。
+- 文档补强：technical-architecture 与 final-delivery-spec 新增高并发强约束验收条款。

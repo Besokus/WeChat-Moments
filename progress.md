@@ -88,3 +88,15 @@
   - files: storage/repositories.pseudo
   - validation: Get-Content + rg 检查通过，无字面量换行残留
   - next: 汇总本轮优化结果并等待是否提交
+
+- [
+2026-04-22 00:16:49
+] Prepared optimization commit.
+  - file: domain/timeline_service.pseudo
+  - checks: git diff reviewed, required timeline constraints preserved
+  - next: stage and commit with detailed Chinese message
+
+- [2026-04-22 00:26:13] 完成高并发治理二次修复（最小改动）。
+  - files: storage/repositories.pseudo, domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, domain/friend_service.pseudo, flows/reconcile_feed_inbox_flow.pseudo, flows/feed_retention_flow.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md
+  - validation: 关键约束关键词检查通过（分区消费/背压/去重降级/retention/SLA）
+  - next: 根据你指令执行 commit 或继续补压测口径

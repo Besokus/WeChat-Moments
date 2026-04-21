@@ -10,12 +10,14 @@ SERVICE TimelineService {
   DEPENDS ON FeedInboxRepository
   DEPENDS ON MomentRepository
 
+  CONST MAX_PAGE_SIZE = 100
+
   # 职责：从 FeedInbox 分页读取好友时间线，保持顺序并批量回查 Post。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
     if viewerId <= 0:
       return PageResult([], null, false)
 
-    size = clamp(limit, 1, 100)
+    size = clamp(limit, 1, MAX_PAGE_SIZE)
     route = RouteContext(viewerId, null)
     inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, size + 1, route)
 
@@ -26,14 +28,17 @@ SERVICE TimelineService {
     for row in pageInboxRows:
       postIds.append(row.post_id)
 
-    # Post 按 post_id 批量获取，最终顺序以 inbox 顺序为准。
-    postMap = toMap(momentRepository.BatchGetByPostIds(postIds), key = post_id)
+    # 读放大治理：请求内先去重，再由仓储内部按 post_id 分片聚合批读。
+    uniquePostIds = dedupe(postIds)
+    postMap = toMap(momentRepository.BatchGetByPostIds(uniquePostIds), key = post_id)
 
     items = []
     for row in pageInboxRows:
       post = postMap[row.post_id]
-      if post is not null:
-        items.append(post)
+      if post is null:
+        # 降级策略：遇到缺失 post 时跳过当前条目，避免整页失败。
+        continue
+      items.append(post)
 
     nextCursor = null
     if hasMore and length(pageInboxRows) > 0:
@@ -42,4 +47,3 @@ SERVICE TimelineService {
 
     return PageResult(items, nextCursor, hasMore)
 }
-

@@ -65,3 +65,14 @@
 2026-04-21 23:54:14
 - Reliability refinement completed: shard-safe batch contracts aligned.
 - Added repository/service contract updates for routed batch read/write to reduce cross-shard risk under high load.
+
+## Status Update 
+2026-04-22 00:16:50
+- Phase 4: completed (timeline read-path optimization + commit prep).
+- Optimized file: domain/timeline_service.pseudo
+- Focus: clamp constant, dedupe post ids before batch load, missing-post graceful skip.
+
+## Status Update 
+2026-04-22 00:26:13
+- Optimization phase updated: implemented enforceable throughput governance for fan-out path.
+- Added explicit constraints for partitioned outbox consumption, backlog backpressure, timeline read amplification control, and feed retention lifecycle.
