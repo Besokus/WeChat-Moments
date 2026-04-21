@@ -1,23 +1,26 @@
-﻿# Repository contracts (pseudo)
+﻿# Repository layer pseudocode (minimal)
+
+TYPE PageRequest {
+  cursor: string?
+  limit: int
+}
 
 INTERFACE FriendRepository {
-  InsertEdge(user_id: long, friend_id: long, created_at: timestamp) -> void
-  ExistsEdge(user_id: long, friend_id: long) -> bool
-  ListByUser(user_id: long, cursor: string?, limit: int) -> list<FriendEdge>
+  Exists(user_id: long, friend_id: long) -> bool
+  Insert(user_id: long, friend_id: long, status: tinyint, created_at: timestamp) -> void
+
+  # cursor + limit pagination by user
+  ListByUser(user_id: long, cursor: string?, limit: int) -> list<Friendship>
 }
 
 INTERFACE MomentRepository {
-  Insert(moment: Moment) -> void
-  BatchGetByIds(moment_ids: list<long>) -> list<Moment>
-  ListByAuthor(author_id: long, cursor: string?, limit: int) -> list<Moment>
-}
+  Insert(moment: Post) -> void
+  Get(post_id: long) -> Post?
+  BatchGet(post_ids: list<long>) -> list<Post>
 
-INTERFACE FeedInboxRepository {
-  BatchInsert(owner_user_id: long, items: list<FeedInboxItem>) -> void
-  ListByOwner(owner_user_id: long, cursor: string?, limit: int) -> list<FeedInboxItem>
-}
+  # cursor + limit pagination by one author
+  ListByAuthor(author_id: long, cursor: string?, limit: int) -> list<Post>
 
-# Index expectations
-# - FriendEdge: (user_id, friend_id), (user_id, created_at DESC)
-# - Moment: (author_id, seq_id DESC)
-# - FeedInboxItem: (owner_user_id, seq_id DESC)
+  # batch query recent posts by multiple authors
+  ListRecentByAuthors(author_ids: list<long>, cursor: string?, limit: int) -> list<Post>
+}
