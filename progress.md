@@ -64,3 +64,10 @@
   - files: interfaces/friend_api.pseudo, interfaces/moment_api.pseudo, interfaces/feed_api.pseudo
   - validation: read-back passed; parameters and return types aligned with service pseudocode
   - next: commit this consistency patch
+
+- [
+2026-04-21 23:32:57
+] Created technical architecture document and maintenance policy.
+  - files: docs/technical-architecture.md, AGENTS.md
+  - validation: read-back passed
+  - next: keep this document updated on architecture/flow/index changes

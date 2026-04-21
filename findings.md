@@ -65,3 +65,8 @@
 - FriendAPI 改为与 FriendService 对齐：AddFriend 返回 Result，ListFriends 使用 cursor+limit 并返回 PageResult<Friendship>。
 - MomentAPI 改为与 MomentService 对齐：PublishMoment 返回 PublishResult，ListUserMoments 返回 PageResult<Post>。
 - TimelineAPI 改为与 TimelineService 对齐：ListFriendMoments 使用 cursor+limit 并返回 PageResult<Post>。
+
+## 2026-04-21 技术文档主文件建立
+- 新增 docs/technical-architecture.md，集中维护技术架构、选型依据、取舍和演进说明。
+- 明确了 10M+/5000/100 约束下的主路径：FeedInbox + fan-out on write。
+- 新增持续维护机制：触发条件、更新要求、变更记录规范。
