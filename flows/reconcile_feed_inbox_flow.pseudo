@@ -1,0 +1,9 @@
+﻿# Feed reconciliation flow skeleton (pseudo)
+
+FLOW ReconcileFeedInboxFlow(scan_time: timestamp) {
+  STEP 1: scan outbox events with status FAILED or long-time PENDING
+  STEP 2: for each event, verify whether enough FeedInbox rows were produced
+  STEP 3: if rows missing, replay fan-out in idempotent chunk mode
+  STEP 4: mark event as SUCCEEDED when replay completes
+  STEP 5: send unresolved events to manual inspection queue after max retry
+}

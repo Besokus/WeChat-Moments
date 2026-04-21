@@ -1,4 +1,4 @@
-﻿# TimelineService pseudocode
+﻿# TimelineService pseudocode (reliability-focused)
 
 TYPE PageResult<T> {
   items: list<T>
@@ -10,14 +10,14 @@ SERVICE TimelineService {
   DEPENDS ON FeedInboxRepository
   DEPENDS ON MomentRepository
 
-  # 职责：从预计算 FeedInbox 分页读取好友动态时间线，并批量回查动态详情。
+  # 职责：从 FeedInbox 分页读取好友时间线，保持顺序并批量回查 Post。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
     if viewerId <= 0:
       return PageResult([], null, false)
 
     size = clamp(limit, 1, 100)
-
-    inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, size + 1)  # created_at DESC
+    route = RouteContext(viewerId, null)
+    inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, size + 1, route)
 
     hasMore = length(inboxRows) > size
     pageInboxRows = takeFirst(inboxRows, size)
@@ -26,7 +26,8 @@ SERVICE TimelineService {
     for row in pageInboxRows:
       postIds.append(row.post_id)
 
-    postMap = toMap(momentRepository.BatchGet(postIds), key = post_id)
+    # Post 按 post_id 批量获取，最终顺序以 inbox 顺序为准。
+    postMap = toMap(momentRepository.BatchGetByPostIds(postIds), key = post_id)
 
     items = []
     for row in pageInboxRows:
@@ -41,3 +42,4 @@ SERVICE TimelineService {
 
     return PageResult(items, nextCursor, hasMore)
 }
+

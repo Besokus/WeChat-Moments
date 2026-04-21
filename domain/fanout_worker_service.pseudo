@@ -1,0 +1,48 @@
+﻿# FanoutWorkerService pseudocode (async fan-out)
+
+SERVICE FanoutWorkerService {
+  DEPENDS ON OutboxRepository
+  DEPENDS ON FriendRepository
+  DEPENDS ON FeedInboxRepository
+
+  CONST MAX_RETRY = 16
+  CONST CHUNK_SIZE = 200
+
+  # 职责：异步消费 Outbox 事件，按分片分组后分批写入 FeedInbox，并处理重试。
+  function processPendingEvents(batchSize: int, nowTs: timestamp) -> void:
+    events = outboxRepository.FetchPending(batchSize, nowTs)
+    for event in events:
+      if not outboxRepository.MarkProcessing(event.event_id):
+        continue
+
+      authorId = event.payload["author_id"]
+      postId = event.aggregate_id
+      createdAt = event.payload["created_at"]
+      route = RouteContext(authorId, null)
+
+      try:
+        friends = friendRepository.ListByUser(authorId, null, 5000, route)
+
+        # 先按目标 user_id 路由分组，避免跨分片批写。
+        friendGroups = groupByRouteKey(friends, key = friend_id)
+        for group in friendGroups:
+          groupRoute = RouteContext(group.route_key, null)
+          chunks = splitIntoChunks(group.rows, CHUNK_SIZE)
+
+          for chunk in chunks:
+            items = []
+            for row in chunk:
+              items.append(FeedInbox(row.friend_id, createdAt, postId, authorId))
+
+            # BatchUpsertByRoute 幂等，重复重放不重复插入。
+            feedInboxRepository.BatchUpsertByRoute(groupRoute, items, CHUNK_SIZE)
+
+        outboxRepository.MarkSucceeded(event.event_id)
+      catch err:
+        retryCount = event.retry_count + 1
+        if retryCount >= MAX_RETRY:
+          outboxRepository.MarkFailed(event.event_id, retryCount, null)
+        else:
+          nextRetryAt = computeExponentialBackoff(nowTs, retryCount)
+          outboxRepository.MarkFailed(event.event_id, retryCount, nextRetryAt)
+}

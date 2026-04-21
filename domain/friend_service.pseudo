@@ -1,4 +1,4 @@
-﻿# FriendService pseudocode
+﻿# FriendService pseudocode (reliability-focused)
 
 TYPE Result {
   success: bool
@@ -14,20 +14,30 @@ TYPE PageResult<T> {
 SERVICE FriendService {
   DEPENDS ON UserRepository
   DEPENDS ON FriendRepository
+  DEPENDS ON IdempotencyRepository
 
-  # 职责：建立双向好友关系（两条单向边）。
-  function addFriend(userId: long, friendId: long) -> Result:
+  # 职责：建立双向好友关系（两条单向边），并支持请求级幂等。
+  function addFriend(userId: long, friendId: long, requestId: string) -> Result:
     if userId <= 0 or friendId <= 0 or userId == friendId:
       return Result(false, "invalid request")
+    if requestId is null or trim(requestId) == "":
+      return Result(false, "missing request id")
+
+    idem = idempotencyRepository.Get("addFriend", requestId)
+    if idem is not null:
+      return Result(true, "duplicate request accepted")
 
     if userRepository.getById(userId) is null or userRepository.getById(friendId) is null:
       return Result(false, "user not found")
 
-    if friendRepository.Exists(userId, friendId):
-      return Result(true, "already friend")
+    routeA = RouteContext(userId, null)
+    routeB = RouteContext(friendId, null)
 
-    friendRepository.Insert(userId, friendId, ACTIVE, now())
-    friendRepository.Insert(friendId, userId, ACTIVE, now())
+    # UpsertEdge 保证重复调用安全。
+    friendRepository.UpsertEdge(userId, friendId, ACTIVE, now(), routeA)
+    friendRepository.UpsertEdge(friendId, userId, ACTIVE, now(), routeB)
+
+    idempotencyRepository.Save("addFriend", requestId, toString(userId) + ":" + toString(friendId))
     return Result(true, "ok")
 
   # 职责：按 cursor + limit 分页查询某用户好友列表。
@@ -36,7 +46,8 @@ SERVICE FriendService {
       return PageResult([], null, false)
 
     size = clamp(limit, 1, 100)
-    rows = friendRepository.ListByUser(userId, cursor, size + 1)
+    route = RouteContext(userId, null)
+    rows = friendRepository.ListByUser(userId, cursor, size + 1, route)
 
     hasMore = length(rows) > size
     pageRows = takeFirst(rows, size)

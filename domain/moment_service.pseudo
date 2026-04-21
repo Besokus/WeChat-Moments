@@ -1,8 +1,8 @@
-﻿# MomentService pseudocode
+﻿# MomentService pseudocode (reliability-focused)
 
 TYPE PublishResult {
   post_id: long
-  success: bool
+  accepted: bool
   message: string
 }
 
@@ -14,31 +14,46 @@ TYPE PageResult<T> {
 
 SERVICE MomentService {
   DEPENDS ON UserRepository
-  DEPENDS ON FriendRepository
   DEPENDS ON MomentRepository
-  DEPENDS ON FeedInboxRepository
   DEPENDS ON IdGenerator
 
-  # 职责：发布一条动态，写入 Post，并将轻量引用写扩散到好友 FeedInbox。
-  function publishMoment(userId: long, content: string) -> PublishResult:
+  # 职责：发布动态主写路径，原子写 Post + Outbox + Idempotency，异步 fan-out。
+  function publishMoment(userId: long, content: string, requestId: string) -> PublishResult:
     if userId <= 0 or content is null or trim(content) == "":
       return PublishResult(0, false, "invalid request")
+    if requestId is null or trim(requestId) == "":
+      return PublishResult(0, false, "missing request id")
 
     if userRepository.getById(userId) is null:
       return PublishResult(0, false, "user not found")
 
     postId = idGenerator.NextPostId()
+    eventId = idGenerator.NextOutboxEventId()
     createdAt = now()
+
     post = Post(postId, userId, content, createdAt)
-    momentRepository.Insert(post)
+    event = OutboxEvent(
+      eventId,
+      "POST",
+      postId,
+      {"author_id": userId, "created_at": createdAt},
+      "PENDING",
+      0,
+      null,
+      createdAt
+    )
 
-    friendRows = friendRepository.ListByUser(userId, null, 5000)
-    inboxItems = []
-    for row in friendRows:
-      inboxItems.append(FeedInbox(row.friend_id, createdAt, postId, userId))
+    route = RouteContext(userId, null)
+    ok = momentRepository.InsertPostWithOutboxAndIdempotency(
+      post, event, "publishMoment", requestId, route
+    )
 
-    feedInboxRepository.BatchInsert(inboxItems)
-    return PublishResult(postId, true, "ok")
+    if not ok:
+      # 幂等重试或冲突请求：上层应按 requestId 查询已有结果。
+      return PublishResult(0, true, "duplicate request accepted")
+
+    # 返回 accepted，实际 fan-out 由 worker 异步完成。
+    return PublishResult(postId, true, "accepted")
 
   # 职责：按 authorId + cursor + limit 倒序分页查询个人动态。
   function listUserMoments(authorId: long, cursor: string?, limit: int) -> PageResult<Post>:
@@ -46,7 +61,8 @@ SERVICE MomentService {
       return PageResult([], null, false)
 
     size = clamp(limit, 1, 100)
-    rows = momentRepository.ListByAuthor(authorId, cursor, size + 1)  # created_at DESC
+    route = RouteContext(authorId, null)
+    rows = momentRepository.ListByAuthor(authorId, cursor, size + 1, route)
 
     hasMore = length(rows) > size
     pageRows = takeFirst(rows, size)
