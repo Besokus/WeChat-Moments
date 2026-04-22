@@ -113,3 +113,18 @@
 - Phase: friend list cache 增强说明与最小伪代码优化 completed。
 - 已完成：第5节扩写（2~3段工程化说明）+ fan-out 读取好友列表的可选缓存回源逻辑。
 - 约束保持：Friendship 仍是真相源；V1 主链路不变；无复杂缓存协议扩展。
+## Status Update
+2026-04-22 14:18:00
+- Phase: 可观测性增强说明 completed。
+- 已完成：第7节扩写，明确核心指标、用途与边界。
+- 约束保持：仅文档增强，不引入完整监控平台设计。
+
+## Status Update 
+2026-04-22 19:10:39
+- Completed docs enhancement for fan-out write amplification quantification.
+- Scope remained docs-only; V1 publish main flow unchanged.
+## Status Update
+2026-04-22 14:30:00
+- Phase: 高负载降级策略增强 completed。
+- 已完成：文档第8节扩写 + worker/flow/service 最小可执行降级分支。
+- 约束保持：不改V1主功能范围，不改一致性目标，仅做工程治理增强。

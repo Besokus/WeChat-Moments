@@ -166,3 +166,18 @@
   - action: 确认 FriendListCacheRepository 可选接口已存在；确认 service 调用与文档语义一致
   - validation: 关键词检索通过（Friendship 真相源、cache miss 回源、fan-out 价值）；目标文件 diff 已核对
   - next: 等待你确认是否提交本轮变更
+- [2026-04-22 14:18:00] 扩写可观测性与核心指标说明。
+  - files: docs/v1-enhancement-notes.md
+  - action: 以2~4段正文补充核心指标与作用，并保持非运维系统实现边界
+  - validation: 回读章节并检查关键指标字符串存在
+  - next: 按需提交本轮变更
+
+- [2026-04-22 19:10:39] Expanded section 6 in v1-enhancement-notes.md.
+  - file: docs/v1-enhancement-notes.md
+  - scope: docs-only enhancement, no main-architecture change
+  - validation: formula and async fan-out rationale included
+- [2026-04-22 14:30:00] 完成高负载降级策略文档+伪代码落盘。
+  - files: domain/fanout_worker_service.pseudo, domain/moment_service.pseudo, flows/publish_moment_flow.pseudo, docs/v1-enhancement-notes.md
+  - action: 新增软/硬阈值降级分支，明确发布优先与最终一致性；扩写第8节工程权衡说明
+  - validation: 关键字检索通过（HARD_DEGRADED/SOFT_DEGRADED、publish success first、最终一致性）
+  - next: 如需可按本轮范围提交中文commit

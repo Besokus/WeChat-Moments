@@ -158,3 +158,15 @@
 - 已在 `domain/fanout_worker_service.pseudo` 加入最小伪代码优化：优先读 `FriendListCacheRepository`，miss/失效回源 `FriendRepository.ListByUser`，并短 TTL 回填。
 - 本次不改变 V1 主链路，不引入复杂缓存协议，不修改 `Friendship` 数据模型语义。
 - 为保证契约一致性，已确认 `storage/repositories.pseudo` 已包含 `FriendListCacheRepository` 可选接口定义（本轮无需新增）。
+## 2026-04-22 可观测性小节增强落盘
+- 已扩写 `docs/v1-enhancement-notes.md` 第7节，明确该能力属于工程治理增强而非业务扩展。
+- 指标已覆盖并与核心功能映射：publish qps、fan-out lag、inbox write failure rate、timeline read latency(p95/p99)。
+- 明确不展开为完整告警平台或监控系统实现，仅保留最小可观测性说明。
+
+## 2026-04-22 第6节扩写完成（fan-out写扩散量化）
+- docs/v1-enhancement-notes.md 第6节已扩写为工程化 3 段：约束驱动写放大、容量公式、异步分发取舍。
+- 明确保留 V1 主链路不变，说明属于现有 tradeoff 的量化解释而非新设计。
+## 2026-04-22 高负载降级伪代码落盘
+- 已在 fan-out worker 引入可执行降级分支：`SOFT_DEGRADED` 降速消费、`HARD_DEGRADED` 暂停该分区消费并保留事件。
+- 已在 publish flow 与 moment service 明确“发布成功优先、时间线可短暂延迟、最终一致性不变”。
+- 已扩写 `docs/v1-enhancement-notes.md` 第8节，强调该策略是高并发工程权衡而非功能缺失。

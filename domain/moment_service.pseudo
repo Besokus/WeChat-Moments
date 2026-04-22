@@ -59,7 +59,8 @@ SERVICE MomentService {
         return PublishResult(toLong(saved.result_ref), true, "duplicate request accepted")
       return PublishResult(0, false, "idempotency conflict")
 
-    # InsertPostWithOutboxAndIdempotency must persist requestId -> postId.
+    # 发布优先：高负载下也不等待 fan-out 完成；好友时间线允许短暂延迟可见。
+    # 最终一致性由 outbox worker + 重试/补偿保证。
     return PublishResult(postId, true, "accepted")
 
   # 职责：按 authorId + cursor + limit 倒序分页查询个人动态。
@@ -80,3 +81,4 @@ SERVICE MomentService {
 
     return PageResult(pageRows, nextCursor, hasMore)
 }
+

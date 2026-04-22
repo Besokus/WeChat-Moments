@@ -18,14 +18,17 @@ SERVICE FanoutWorkerService {
     partitions = outboxRepository.ListActivePartitions(nowTs)
     for partitionKey in partitions:
       pending = outboxRepository.CountPendingByPartition(partitionKey, nowTs)
+      quota, mode = selectQuotaByBacklog(pending)
 
-      if pending >= PARTITION_PENDING_HARD_LIMIT:
+      if mode == "HARD_DEGRADED":
+        # 高负载硬降级：优先保证发布主写成功，允许好友时间线短暂延迟可见。
+        # 不丢弃事件，保留最终一致性；由后续重试/补偿继续消化 backlog。
         emitAlert("outbox hard backlog", partitionKey, pending)
         continue
 
-      quota = MAX_EVENTS_PER_PARTITION_CYCLE
-      if pending >= PARTITION_PENDING_SOFT_LIMIT:
-        quota = MAX_EVENTS_PER_PARTITION_CYCLE / 4
+      if mode == "SOFT_DEGRADED":
+        # 软降级：保留消费但降低吞吐，避免 fan-out 写扩散打穿存储链路。
+        emitMetric("fanout.soft_degraded.partition", partitionKey, pending)
 
       events = outboxRepository.FetchPendingByPartition(partitionKey, quota, nowTs)
       groups = mergeByAuthorWithinWindow(events, MERGE_WINDOW_SECONDS)
@@ -94,5 +97,12 @@ SERVICE FanoutWorkerService {
     # cache miss / 过期后回源 Friendship；缓存仅用于读优化，不参与真相判定。
     friendListCacheRepository.SetByUser(authorId, friends, 30)
     return friends
-}
 
+  # 职责：按 backlog 阈值选择消费配额与降级模式。
+  function selectQuotaByBacklog(pending: int) -> (int, string):
+    if pending >= PARTITION_PENDING_HARD_LIMIT:
+      return 0, "HARD_DEGRADED"
+    if pending >= PARTITION_PENDING_SOFT_LIMIT:
+      return MAX_EVENTS_PER_PARTITION_CYCLE / 4, "SOFT_DEGRADED"
+    return MAX_EVENTS_PER_PARTITION_CYCLE, "NORMAL"
+}
