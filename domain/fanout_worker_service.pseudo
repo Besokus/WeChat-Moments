@@ -3,6 +3,7 @@
 SERVICE FanoutWorkerService {
   DEPENDS ON OutboxRepository
   DEPENDS ON FriendRepository
+  DEPENDS ON FriendListCacheRepository   # optional read optimization
   DEPENDS ON FeedInboxRepository
 
   CONST MAX_RETRY = 16
@@ -48,7 +49,7 @@ SERVICE FanoutWorkerService {
     route = RouteContext(authorId, null)
 
     try:
-      friends = friendRepository.ListByUser(authorId, null, 5000, route)
+      friends = loadFriendsForFanout(authorId, route)
       friendGroups = groupByRouteKey(friends, key = friend_id)
 
       for friendGroup in friendGroups:
@@ -79,5 +80,19 @@ SERVICE FanoutWorkerService {
         else:
           nextRetryAt = computeExponentialBackoff(nowTs, retryCount)
           outboxRepository.MarkFailed(event.event_id, retryCount, nextRetryAt)
+
+  # 职责：可选使用好友列表缓存降低重复读取；Friendship 仍是真相源。
+  function loadFriendsForFanout(authorId: long, route: RouteContext) -> list<Friendship>:
+    if friendListCacheRepository is null:
+      return friendRepository.ListByUser(authorId, null, 5000, route)
+
+    cached = friendListCacheRepository.GetByUser(authorId)
+    if cached is not null:
+      return cached
+
+    friends = friendRepository.ListByUser(authorId, null, 5000, route)
+    # cache miss / 过期后回源 Friendship；缓存仅用于读优化，不参与真相判定。
+    friendListCacheRepository.SetByUser(authorId, friends, 30)
+    return friends
 }
 

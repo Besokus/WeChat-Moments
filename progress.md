@@ -154,3 +154,15 @@
   - action: 恢复 UTF-8 编码，确认无乱码；保留并验证 V1/hybrid 边界注释。
   - validation: Get-Content 回读通过，git status 仅显示预期改动
   - next: 可执行提交
+
+- [2026-04-22 14:02:00] 完成 friend list cache 增强说明与最小伪代码优化。
+  - files: docs/v1-enhancement-notes.md, domain/fanout_worker_service.pseudo
+  - action: 扩写第5节（可选缓存、Friendship真相源、miss回源）；fanout worker 增加可选缓存读取与回源函数 loadFriendsForFanout
+  - validation: 待进行关键词与diff校验
+  - next: 校验改动并按你指令提交
+
+- [2026-04-22 14:08:00] 完成 friend list cache 增强校验与仓储契约补齐。
+  - files: docs/v1-enhancement-notes.md, domain/fanout_worker_service.pseudo, storage/repositories.pseudo
+  - action: 确认 FriendListCacheRepository 可选接口已存在；确认 service 调用与文档语义一致
+  - validation: 关键词检索通过（Friendship 真相源、cache miss 回源、fan-out 价值）；目标文件 diff 已核对
+  - next: 等待你确认是否提交本轮变更

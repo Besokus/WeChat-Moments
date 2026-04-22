@@ -152,3 +152,9 @@
 - `docs/v1-enhancement-notes.md` 的“高活跃用户 / 大V 演进说明”已从一句话骨架扩写为工程化 3 段正文。
 - `domain/fanout_worker_service.pseudo` 已增加边界注释：V1 固定全量 push，hybrid 仅未来演进，不进入当前执行链路。
 - 处理过程发现一次文件编码风险（非 UTF-8），已恢复为 UTF-8 并回读确认内容正确。
+
+## 2026-04-22 friend list cache 增强落盘
+- 已扩写 `docs/v1-enhancement-notes.md` 第 5 节，明确 friend list cache 只做可选读优化、`Friendship` 仍是真相源。
+- 已在 `domain/fanout_worker_service.pseudo` 加入最小伪代码优化：优先读 `FriendListCacheRepository`，miss/失效回源 `FriendRepository.ListByUser`，并短 TTL 回填。
+- 本次不改变 V1 主链路，不引入复杂缓存协议，不修改 `Friendship` 数据模型语义。
+- 为保证契约一致性，已确认 `storage/repositories.pseudo` 已包含 `FriendListCacheRepository` 可选接口定义（本轮无需新增）。

@@ -108,3 +108,8 @@
 - Phase: V1 enhancement 最小补强 completed。
 - 本轮新增：增强文档小节扩写 + fanout worker 边界注释（仅说明，不改主链路行为）。
 - 下一步：按你的指令执行提交或继续文档整理。
+## Status Update
+2026-04-22 14:02:00
+- Phase: friend list cache 增强说明与最小伪代码优化 completed。
+- 已完成：第5节扩写（2~3段工程化说明）+ fan-out 读取好友列表的可选缓存回源逻辑。
+- 约束保持：Friendship 仍是真相源；V1 主链路不变；无复杂缓存协议扩展。
