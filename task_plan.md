@@ -160,3 +160,21 @@
 - 目标：针对 fan-out 容量不可证明、首页读回表瓶颈、FeedInbox retention 执行成本、分区策略偏契约级等问题制定最小改进计划。
 - 范围：仅围绕 `Friendship + Post + FeedInbox`、Outbox fan-out、FeedInbox timeline 主链路做计划，不引入评论/点赞/推荐等题外功能。
 - 验收：容量公式、首页读峰值、retention 分区清理、分片禁止广播查询均已落盘并通过关键词检查。
+
+## Status Update
+2026-04-22 20:25:00
+- Phase: README 总入口文档 completed.
+- 已完成：新增 README.md，总览项目目标、约束、架构、流程、工程化增强与文档索引。
+- 约束保持：仅做总入口整理，不改主架构、不改核心伪代码语义。
+
+## Status Update
+2026-04-22 20:40:00
+- Phase: README 总入口文档细化增强 completed.
+- 已完成：README.md 重写为更完整的项目总览，强化并发设计、一致性、降级、恢复、边界与面试讲法。
+- 约束保持：仅改文档表达，不改主架构和核心伪代码语义。
+
+## Status Update
+2026-04-22 21:00:00
+- Phase: V2 迭代说明完成.
+- 已完成：新增 `docs/v2-iteration.md`，并在 README 中加入 V2 入口说明。
+- 约束保持：V1 主架构不变，V2 仅作为下一阶段演进展示。

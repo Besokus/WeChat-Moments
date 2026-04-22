@@ -217,3 +217,21 @@
   - action: 新增 publish admission control（soft/hard 阈值、分级行为、返回语义）；同步流程与交付文档。
   - validation: 回读关键字通过（accepted_but_delayed、rejected_retry_later、PUBLISH_ADMISSION_SOFT_PENDING、PUBLISH_ADMISSION_HARD_PENDING）。
   - next: 汇总输出本轮修复内容并等待你确认是否提交
+
+- [2026-04-22 20:25:00] 新增 README 总入口文档。
+  - files: README.md, findings.md, progress.md, task_plan.md
+  - action: 汇总项目目标、规模约束、主架构、核心流程、工程化增强和文档索引。
+  - validation: 已写入并回读确认；不改变主架构与伪代码语义。
+  - next: 等待你确认是否提交 README 文档补强。
+
+- [2026-04-22 20:40:00] README 总入口文档细化增强。
+  - files: README.md, findings.md, progress.md, task_plan.md
+  - action: 重写 README 为项目总览、并发设计、一致性、降级、恢复、边界与面试讲法的综合说明。
+  - validation: 已回读新 README 内容；主架构未变化。
+  - next: 等待用户确认是否需要进一步压缩或提交 README。
+
+- [2026-04-22 21:00:00] 落盘 V2 迭代说明并更新 README 入口。
+  - files: docs/v2-iteration.md, README.md, findings.md, progress.md, task_plan.md
+  - action: 新增 V2 迭代文档，展示从 V1 演进到 push/pull hybrid、缓存刚需化与更细治理；README 增加 V2 入口。
+  - validation: 已回读 README 与 V2 文档；主架构不变。
+  - next: 需要时可继续提交本轮修改。

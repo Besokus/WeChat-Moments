@@ -213,3 +213,15 @@
 - 新增 `docs/failure-matrix.md`，明确 Post/Outbox/Idempotency/fan-out/cache/retention 等失败场景的恢复策略。
 - 新增 `docs/production-readiness-checklist.md`，区分当前 V1 已具备能力与真实上线前必须补齐的压测、分片、可观测性、运维闭环。
 - 本轮不改变主架构，不新增题外功能，仅把生产边界显式化。
+
+## 2026-04-22 README 总入口文档落盘
+- 新增 `README.md` 作为项目总入口，统一讲清题目目标、规模约束、主架构、核心流程、工程化增强与文档索引。
+- README 仅做总览整理，不改变主架构和现有伪代码语义。
+
+## 2026-04-22 README 细化增强
+- README.md 已重写为项目总入口，重点强化并发设计、一致性、降级、恢复、边界与真实落地价值的讲解。
+- 本次只改文档表达，不改主架构和伪代码语义。
+
+## 2026-04-22 V2 迭代文档落盘
+- 新增 `docs/v2-iteration.md`，将 V1 的下一版演进明确为 push/pull hybrid、首屏缓存刚需化、分层 admission control 与更细恢复优先级。
+- README 已增加 V2 入口说明，仍然保持 V1 主架构不变。
