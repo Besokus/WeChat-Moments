@@ -13,6 +13,9 @@ SERVICE FanoutWorkerService {
   CONST PARTITION_PENDING_HARD_LIMIT = 100000
   CONST HARD_DEGRADED_MIN_QUOTA = 100
   CONST MAX_EVENTS_PER_PARTITION_CYCLE = 1000
+  CONST MAX_WORKERS_PER_PARTITION = 4
+  CONST TARGET_MAX_FANOUT_LAG_SECONDS = 300
+  CONST TARGET_MAX_BACKLOG_RECOVERY_SECONDS = 1800
 
   # 职责：按分区消费 Outbox，并在积压场景执行背压与降速。
   function processPendingEvents(nowTs: timestamp) -> void:
@@ -106,5 +109,39 @@ SERVICE FanoutWorkerService {
     if pending >= PARTITION_PENDING_SOFT_LIMIT:
       return MAX_EVENTS_PER_PARTITION_CYCLE / 4, "SOFT_DEGRADED"
     return MAX_EVENTS_PER_PARTITION_CYCLE, "NORMAL"
+
+  # 职责：容量评审/压测时估算 fan-out 是否可被 worker 消化；不参与业务主流程。
+  function estimateFanoutCapacity(
+    publishQps: int,
+    avgFriendCount: int,
+    partitionCount: int,
+    workerPerPartition: int,
+    writeQpsPerWorker: int,
+    backlogSize: int
+  ) -> map<string, any>:
+    incomingFanoutWriteQps = publishQps * avgFriendCount
+    boundedWorkerPerPartition = clamp(workerPerPartition, 1, MAX_WORKERS_PER_PARTITION)
+    workerWriteCapacity = partitionCount * boundedWorkerPerPartition * writeQpsPerWorker
+    backlogGrowthQps = max(0, incomingFanoutWriteQps - workerWriteCapacity)
+
+    recoverySeconds = INF
+    if workerWriteCapacity > incomingFanoutWriteQps:
+      recoverySeconds = backlogSize / (workerWriteCapacity - incomingFanoutWriteQps)
+
+    capacityStatus = "OK"
+    if backlogGrowthQps > 0:
+      capacityStatus = "UNDER_PROVISIONED"
+    if recoverySeconds > TARGET_MAX_BACKLOG_RECOVERY_SECONDS:
+      capacityStatus = "RECOVERY_TOO_SLOW"
+
+    return {
+      "incoming_fanout_write_qps": incomingFanoutWriteQps,
+      "worker_write_capacity": workerWriteCapacity,
+      "backlog_growth_qps": backlogGrowthQps,
+      "backlog_recovery_seconds": recoverySeconds,
+      "target_max_fanout_lag_seconds": TARGET_MAX_FANOUT_LAG_SECONDS,
+      "target_max_backlog_recovery_seconds": TARGET_MAX_BACKLOG_RECOVERY_SECONDS,
+      "capacity_status": capacityStatus
+    }
 }
 

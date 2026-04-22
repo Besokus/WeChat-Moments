@@ -20,6 +20,10 @@
 
 该缓存仅是读优化层，不是唯一真相源，且不改变当前 friend timeline 正式主链路：命中缓存直接返回首屏结果，cache miss 或过期后仍回到 `FeedInbox -> BatchGet(Post)` 执行查询并回填缓存。
 
+线上审计口径下，如果没有首屏缓存，V1 仍然成立，但首页高峰的 p95/p99 延迟会更容易被 `BatchGet(Post)` 跨分片回表拉高。因此缓存不是正确性的必要条件，但是真实高并发读峰值下的重要削峰手段。
+
+建议验收指标：`timeline_first_page_cache_hit_rate >= 70%` 作为压测目标，且 cache 异常时 `timeline_read_latency_p99` 不应导致主链路不可用。
+
 该增强属于可选项，不是 V1 mandatory execution path；它的价值在于体现你在既有架构不变前提下，对 `10M+` 场景读热点治理的工程意识。
 
 ## 5. friend list cache 可选优化说明
@@ -33,6 +37,10 @@
 在题目约束下，fan-out 写扩散是发布链路的直接结果而不是实现细节：单用户好友上限为 `5000`，因此单次发布在最坏情况下最多触发约 `5000` 条 `FeedInbox` 写入。随着用户规模到 `10M+`，并发发布会把这类写放大快速累积到分发链路。
 
 可用简化容量表达式做预算：`fanout_write_qps ≈ publish_qps * avg_friends_per_publisher`。在极端情况下，上界接近 `publish_qps * 5000`，如果把全部 fan-out 压在同步请求里，发布接口的延迟与失败率会直接受写扩散波动影响，难以稳定。
+
+线上容量评估必须继续落到 worker 能力：`worker_write_capacity = partition_count * worker_per_partition * write_qps_per_worker`。若 `worker_write_capacity < fanout_write_qps`，outbox backlog 必然增长，系统只能通过背压、降级和扩容缩短恢复窗口，不能宣称实时分发。
+
+恢复时间用 `backlog_recovery_time = backlog_size / max(1, worker_write_capacity - fanout_write_qps)` 估算。V1 默认目标为 `max_fanout_lag_target = 300s`、`max_backlog_recovery_time = 1800s`，这些参数不是拍脑袋常量，后续必须通过压测校准。
 
 因此当前 V1 采用 `Outbox + async fan-out + chunk + backpressure` 是合理的工程取舍：同步请求只负责原子主写，扩散写在异步分区消费中完成，并通过分批与背压控制链路抖动。这个小节不是新设计，而是对现有 tradeoff 的量化解释。
 
@@ -60,7 +68,17 @@
 ## 9. V1 与未来版本边界说明
 V1 仅保证最小闭环与近期时间线可用性，增强项属于未来演进方向，不作为当前必须实现内容。
 
-## 10. 总结
+## 10. 线上高并发验收标准
+以下标准用于判断增强说明是否真正支撑高并发审计，而不是只停留在文案层：
+
+- fan-out：能根据 `publish_qps * avg_friend_count` 计算写扩散压力，并能判断 worker 是否欠配。
+- Outbox：高 backlog 下仍保留最小消费配额，避免最终一致性冻结。
+- 首页读取：能定位 `BatchGet(Post)` 是读峰值瓶颈，first-page cache 失败必须 fallback 到正式链路。
+- retention：按 route partition 滚动清理，限制用户数和删除 chunk，禁止全局扫描。
+- 分片：批读/批写必须按 route 分组，禁止广播所有分片。
+- 边界：retention window 外历史时间线不在 V1 保证范围。
+
+## 11. 总结
 V1 当前方案已满足题目交付要求，本增强说明用于表达“可持续扩展能力”而非改变当前架构结论。
 
 

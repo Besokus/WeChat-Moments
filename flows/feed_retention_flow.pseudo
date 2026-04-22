@@ -3,10 +3,15 @@
 FLOW FeedRetentionFlow(now_time: timestamp) {
   CONST RETAIN_DAYS = 365
   CONST MAX_INBOX_ROWS_PER_USER = 20000
+  CONST MAX_USERS_PER_PARTITION_CYCLE = 1000
+  CONST DELETE_CHUNK_SIZE = 500
+  CONST LOW_PRIORITY_ONLY = true
 
-  STEP 1: scan active users by route partition
-  STEP 2: for each user, delete inbox rows older than now_time - RETAIN_DAYS
-  STEP 3: for each user, if inbox rows still exceed MAX_INBOX_ROWS_PER_USER, delete oldest exceeded rows
-  STEP 4: write retention metrics (deleted_rows, affected_users, partition)
-  STEP 5: document that V1 timeline only guarantees data inside this retention window
+  STEP 1: iterate FeedInbox route partitions; never run global full-table scan
+  STEP 2: in each partition, select at most MAX_USERS_PER_PARTITION_CYCLE active users
+  STEP 3: for each user, delete rows older than now_time - RETAIN_DAYS in DELETE_CHUNK_SIZE batches
+  STEP 4: for each user, if rows still exceed MAX_INBOX_ROWS_PER_USER, delete oldest exceeded rows in DELETE_CHUNK_SIZE batches
+  STEP 5: throttle retention work as low-priority background traffic; pause if online read/write latency rises
+  STEP 6: write retention metrics (deleted_rows, affected_users, partition, paused_cycles)
+  STEP 7: document that V1 timeline only guarantees data inside this retention window
 }

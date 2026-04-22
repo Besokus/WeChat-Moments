@@ -14,6 +14,7 @@ SERVICE TimelineService {
   CONST MAX_PAGE_SIZE = 100
   CONST MAX_INBOX_SCAN_FACTOR = 3
   CONST FIRST_PAGE_CACHE_TTL_SECONDS = 15
+  CONST FIRST_PAGE_CACHE_TARGET_HIT_RATE = 0.70
 
   # 职责：从 FeedInbox 分页读取好友时间线，保持顺序并批量回查 Post。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
@@ -22,10 +23,15 @@ SERVICE TimelineService {
 
     size = clamp(limit, 1, MAX_PAGE_SIZE)
     isFirstPage = cursor is null or trim(cursor) == ""
-    if isFirstPage:
-      cached = timelineCacheRepository.GetFirstPage(viewerId, size)
-      if cached is not null:
-        return cached
+    if isFirstPage and timelineCacheRepository is not null:
+      try:
+        cached = timelineCacheRepository.GetFirstPage(viewerId, size)
+        if cached is not null:
+          emitMetric("timeline.first_page_cache_hit", viewerId, size)
+          return cached
+      catch cacheErr:
+        # cache 不是唯一真相源；异常或 miss 必须回到 FeedInbox -> BatchGet(Post)。
+        emitMetric("timeline.first_page_cache_error", viewerId, size)
 
     route = RouteContext(viewerId, null)
     scanLimit = size * MAX_INBOX_SCAN_FACTOR + 1
@@ -39,6 +45,7 @@ SERVICE TimelineService {
 
     # 读放大治理：请求内先去重，再由仓储内部按 post_id 分片聚合批读。
     uniquePostIds = dedupe(postIds)
+    emitMetric("timeline.batch_get_post_count", length(uniquePostIds))
     postMap = toMap(momentRepository.BatchGetByPostIds(uniquePostIds), key = post_id)
 
     items = []
@@ -59,8 +66,13 @@ SERVICE TimelineService {
       nextCursor = encodeCursor(last.created_at, last.post_id)
 
     page = PageResult(items, nextCursor, nextCursor is not null)
-    if isFirstPage:
-      # cache is optional optimization, not source of truth
-      timelineCacheRepository.SetFirstPage(viewerId, size, page, FIRST_PAGE_CACHE_TTL_SECONDS)
+    if isFirstPage and timelineCacheRepository is not null:
+      try:
+        # cache is optional optimization, not source of truth
+        timelineCacheRepository.SetFirstPage(viewerId, size, page, FIRST_PAGE_CACHE_TTL_SECONDS)
+      catch cacheErr:
+        emitMetric("timeline.first_page_cache_set_error", viewerId, size)
+
+    # 由于 post 缺失、retention 边界或 overfetch 上限，items 数量允许小于 limit。
     return page
 }

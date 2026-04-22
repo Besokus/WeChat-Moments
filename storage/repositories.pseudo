@@ -10,6 +10,12 @@ TYPE RouteContext {
   route_bucket: string?     # optional logical bucket
 }
 
+# Sharding contract:
+# - Friendship and FeedInbox route by user_id / viewer_id.
+# - Post must be routable by post_id or metadata mapping.
+# - Outbox partitions are consumed by route partition, not by global scan.
+# - Repository implementations must group batch reads/writes by route; broadcasting to all shards is forbidden.
+
 TYPE OutboxEvent {
   event_id: long
   aggregate_type: string    # POST
@@ -45,6 +51,7 @@ INTERFACE MomentRepository {
 
   # MUST dedupe post_ids and group by post_id shard key inside repository.
   # post_id must be globally unique and routable through id bits or metadata mapping.
+  # MUST NOT issue one cross-shard random request per post_id when a shard-grouped batch is possible.
   BatchGetByPostIds(post_ids: list<long>) -> list<Post>
 
   # cursor + limit pagination by one author
@@ -65,6 +72,7 @@ INTERFACE MomentRepository {
 
 INTERFACE FeedInboxRepository {
   # idempotent upsert by unique (user_id, post_id), with chunk control
+  # caller must group items by viewer user_id route; implementation must not broadcast writes across all shards.
   BatchUpsertByRoute(
     route: RouteContext,
     items: list<FeedInbox>,

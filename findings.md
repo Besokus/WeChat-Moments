@@ -178,9 +178,21 @@
 - 容量说明修复：补充默认恢复目标 `max_fanout_lag_target=300s`、`max_backlog_recovery_time=1800s`，用于压测对标。
 - 范围控制：仅做最小化伪代码与文档补强，不改变 V1 主架构和功能边界。
 
+## 2026-04-22 面试官视角严审结论（本轮）
+- 核心成立点：主链路保持 `FeedInbox` 读取、避免读时聚合；`Post + Outbox + Idempotency` 方向正确；cursor/索引/分区意识明确。
+- 主要薄弱点：容量与恢复目标仍为默认值，缺少压测实证；原子边界仍依赖“同分区前提”；时间线补页在高缺失场景存在可读性退化风险。
+- 工程化风险：降级与可观测多为规则声明，缺少可执行SLO闭环与硬门槛。
+
 ## 2026-04-22 线上高并发审计级待补强点
 - fan-out 容量目前已有公式和默认目标，但缺少可执行容量预算表、分区数/worker 数/单分区吞吐的推导入口。
 - 首页读峰值瓶颈已识别为 `FeedInbox -> BatchGet(Post)`，但需要把 first-page cache 的失败回退、命中率目标、读放大指标写成验收项。
 - FeedInbox retention 已有 365 天/每用户 20000 行边界，但仍需说明按分区滚动清理、禁止全局扫描、清理对在线读写限速。
 - 分片/分区目前有 `RouteContext` 与按 userId 路由契约，需要补充热点分区识别、扩容触发、跨分片批读聚合边界。
 - 这些补强应保持 V1 主模型不变，只把“提到分区/背压/retention”升级为“可验证的工程约束”。
+
+## 2026-04-22 线上高并发审计级补强落盘
+- fan-out 容量已落盘为可计算公式：`incoming_fanout_write_qps`、`worker_write_capacity`、`backlog_growth_qps`、`backlog_recovery_time`。
+- FanoutWorker 已新增 `estimateFanoutCapacity`，用于压测/容量评审，不改变业务主流程。
+- TimelineService 已明确 first-page cache fallback、BatchGet(Post) 指标与返回条数可能小于 limit 的边界。
+- FeedRetentionFlow 已从抽象清理改为按 route partition、限用户数、限 DELETE_CHUNK、低优先级执行。
+- Repository 契约已明确批读/批写按 route 分组，禁止全分片广播查询。

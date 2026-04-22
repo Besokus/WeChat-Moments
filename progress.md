@@ -188,6 +188,12 @@
   - validation: planning-with-files + karpathy-guidelines 已用于范围控制
   - next: 输出最小改进计划，等待确认后再落盘具体文档/伪代码
 
+- [2026-04-22 19:45:00] 线上高并发审计级补强实际落盘。
+  - files: domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, flows/feed_retention_flow.pseudo, storage/repositories.pseudo, docs/technical-architecture.md, docs/v1-overview.md, docs/v1-enhancement-notes.md
+  - action: 补充容量估算、读峰值 fallback/指标、retention 分区限速、分片禁止广播与高并发验收标准
+  - validation: rg 检查通过（容量公式、BatchGet 读瓶颈、retention 分区清理、禁止广播查询）
+  - next: 等待用户确认是否提交中文 commit
+
 - [2026-04-22 19:35:35] 完成高并发复审意见最小化落盘修复。
   - files: domain/fanout_worker_service.pseudo, storage/repositories.pseudo, domain/friend_service.pseudo, domain/moment_service.pseudo, flows/publish_moment_flow.pseudo, docs/v1-overview.md, docs/technical-architecture.md, docs/v1-enhancement-notes.md, task_plan.md, findings.md
   - action: 硬降级改为最小配额持续消费；幂等键补充 actor_id 作用域；补充原子边界前提与容量恢复目标；增强文档与伪代码一致性。

@@ -188,11 +188,27 @@ V1 关键文件：
 - `max_backlog_recovery_time = 1800s`（默认目标值）
 说明：阈值参数为 V1 默认值，后续需要通过压测回填校准。
 
+线上审计口径：
+- `incoming_fanout_write_qps = publish_qps * avg_friend_count`
+- `worker_write_capacity = partition_count * worker_per_partition * write_qps_per_worker`
+- `backlog_growth_qps = max(0, incoming_fanout_write_qps - worker_write_capacity)`
+- `backlog_recovery_time = backlog_size / max(1, worker_write_capacity - incoming_fanout_write_qps)`
+
+若 `worker_write_capacity < incoming_fanout_write_qps`，V1 必须承认进入 backlog 增长状态，并依赖背压、最小消费配额和最终一致恢复，而不是承诺实时分发。
+
 ### 10.4 未来演进（仅说明）
 当前 V1 在题目约束下统一采用 `fan-out on write` 是合理的：好友上限为 5000，写扩散成本可预期，且可换取更稳定的时间线读取路径（`FeedInbox -> BatchGet(Post)`）。  
 当未来出现高活跃用户/广播型用户/大V时，持续高频发布会放大 fan-out 写压力，并推高 outbox 积压与分区热点风险。  
 后续可在不改变主模型（`Friendship + Post + FeedInbox`）前提下，演进为 push/pull hybrid：普通用户继续 push，大V按 pull 路径供粉丝侧读取，以降低极端写放大。  
 该演进不属于当前 V1 实现范围，仅作为容量扩展方向保留。
+
+### 10.5 线上高并发验收标准
+- 写扩散：能解释 5000 好友用户发布 1 条动态最多产生 5000 条 `FeedInbox` 写入。
+- 并发发布：能用容量公式判断 outbox backlog 是否增长，并说明恢复时间。
+- 首页读取：能指出 `BatchGet(Post)` 是高并发首页首屏的主要读瓶颈。
+- retention：能说明 V1 只保证 retention window 内时间线，清理按分区滚动执行，禁止全局扫描。
+- 分区：能说明 `Friendship/FeedInbox/Post/Outbox` 的路由边界，禁止全分片广播查询。
+- 缓存：first-page cache 与 friend list cache 都是优化层，不是真相源，失败必须回源正式链路。
 ## 11. 边界与非目标（V1）
 不做：
 - 评论、点赞、媒体、推荐流、审核

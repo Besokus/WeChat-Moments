@@ -137,6 +137,7 @@
 
 ## Status Update
 2026-04-22 19:38:05
-- Phase: 线上高并发审计级补强计划 in_progress。
+- Phase: 线上高并发审计级补强计划 completed。
 - 目标：针对 fan-out 容量不可证明、首页读回表瓶颈、FeedInbox retention 执行成本、分区策略偏契约级等问题制定最小改进计划。
 - 范围：仅围绕 `Friendship + Post + FeedInbox`、Outbox fan-out、FeedInbox timeline 主链路做计划，不引入评论/点赞/推荐等题外功能。
+- 验收：容量公式、首页读峰值、retention 分区清理、分片禁止广播查询均已落盘并通过关键词检查。

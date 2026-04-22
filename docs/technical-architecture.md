@@ -110,6 +110,7 @@
 ## 10. 变更记录
 - `2026-04-21`：初始化文档；确认正式时间线路径为 `FeedInbox + fan-out on write`；收敛接口与服务契约一致性。
 - `2026-04-22`：补充高并发治理条款（分区消费/背压阈值/热点合并/retention）；新增时间线读放大优化（post_id 去重、缺失降级跳过）；同步固化技术边界（仅伪代码、禁止读扩散回退）。
+- `2026-04-22`：补充线上高并发审计级验收标准：fan-out 容量预算、首页读峰值、retention 分区清理、分片禁止广播查询。
 
 ## 11. 问题清单与优化实施计划（高并发/高负载）
 ### 11.1 P0 优化（必须完成）
@@ -165,7 +166,7 @@
 - 明确禁止项升级为维护规则：禁止全表扫描、禁止深分页 offset 默认方案、禁止时间线读扩散。
 - 文档维护触发器生效：当模型/主流程/索引/边界变化时，必须同步更新本技术文档与变更记录。
 
-## 13. 2026-04-22 最终缺口修复说明
+## 14. 2026-04-22 最终缺口修复说明
 - 幂等返回语义：publishMoment 的 IdempotencyRecord.result_ref 必须保存 post_id；幂等作用域必须为 op_name + actor_id + request_id，重复请求必须返回原始 post_id，禁止返回 0。
 - fan-out 批量边界：FanoutWorker 按最终 FeedInbox item 数切分，公式为每批 items <= CHUNK_SIZE，避免 friend chunk * event count 放大。
 - 原子边界前提：Post + Outbox + Idempotency 必须在同 route/partition 事务内提交；否则需改为主写成功后可靠补偿语义。
@@ -174,4 +175,42 @@
 - FeedInbox 历史边界：V1 只保证 retention 窗口内的近期好友时间线；超过 retention 的历史归档查询不属于当前最小闭环。
 - 好友修复语义：EnqueueEdgePairRepair 是持久化补偿任务入口，由 RepairFriendshipEdgePairFlow 异步幂等补齐双向边。
 - 分页语义：Post/FeedInbox cursor 使用 created_at + post_id；Friendship cursor 使用 created_at + friend_id。
+
+## 15. 线上高并发审计级补强
+### 15.1 fan-out 容量预算
+- 单次发布最坏写放大：`max_fanout_writes_per_post = 5000`。
+- 入口写扩散速率：`incoming_fanout_write_qps = publish_qps * avg_friend_count`。
+- worker 写入能力：`worker_write_capacity = partition_count * worker_per_partition * write_qps_per_worker`。
+- backlog 增长速率：`backlog_growth_qps = max(0, incoming_fanout_write_qps - worker_write_capacity)`。
+- backlog 恢复时间：`backlog_recovery_time = backlog_size / max(1, worker_write_capacity - incoming_fanout_write_qps)`。
+- 验收要求：当 `worker_write_capacity < incoming_fanout_write_qps` 时，方案必须明确进入 backlog/降级状态，不能宣称实时 fan-out。
+
+### 15.2 首页读峰值边界
+- 正式路径仍为 `FeedInbox -> BatchGet(Post)`。
+- 高并发首页读取的主要瓶颈是 `BatchGet(Post)` 的跨分片回表与随机读放大。
+- first-page cache 仅做短 TTL 削峰；cache miss、过期或失败必须回到正式路径。
+- 验收指标：`timeline_first_page_cache_hit_rate`、`timeline_batch_get_post_count`、`timeline_batch_get_post_latency_p95`、`timeline_read_latency_p99`。
+
+### 15.3 FeedInbox retention 执行边界
+- retention 不是完整历史方案，只是 V1 的近期时间线边界。
+- 清理必须按 FeedInbox route partition 滚动执行，禁止全局扫描。
+- 单轮必须限制用户数与删除 chunk，清理任务为低优先级后台流量。
+- 如果在线读写延迟升高，retention 必须暂停或降速。
+
+### 15.4 分区与禁止项
+- `Friendship` 按 `user_id` 分区，服务 `listFriends` 与好友修复。
+- `FeedInbox` 按 `user_id/viewer_id` 分区，服务时间线读取、fan-out 写入、retention 清理。
+- `Post` 必须能通过 `post_id` 路由到分片，服务 timeline 批量回表。
+- `Outbox` 按 route partition 消费，避免全局队列单点。
+- 禁止跨所有分片广播查询；批读/批写必须先按 route 分组。
+
+## 16. 高并发验收标准
+| 验收项 | 通过标准 |
+|---|---|
+| 5000 好友发布 | 能说明 1 条动态最多触发 5000 条 FeedInbox 写入，并由 async fan-out 消化 |
+| 并发发布 | 能用容量公式判断 backlog 是否增长，并说明恢复时间或降级状态 |
+| 首页读峰值 | 能指出瓶颈在 BatchGet(Post)，并说明 first-page cache 的 fallback 语义 |
+| FeedInbox 膨胀 | 有 retention window、每用户行数上限、分区滚动清理与 V1 历史边界 |
+| 分片/分区 | Friendship/FeedInbox/Post/Outbox 均有路由语义，禁止全分片广播 |
+| 失败恢复 | Outbox 重试、dead-letter、reconcile 与最小消费配额均保留最终一致性活性 |
 
