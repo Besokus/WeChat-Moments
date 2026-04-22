@@ -43,6 +43,8 @@ SERVICE FanoutWorkerService {
       return
 
     authorId = executable[0].payload["author_id"]
+    # V1 正式路径：所有作者统一走 push fan-out。
+    # 未来可演进为普通用户 push / 大V pull 的 hybrid，但不属于当前执行链路。
     route = RouteContext(authorId, null)
 
     try:
@@ -78,3 +80,4 @@ SERVICE FanoutWorkerService {
           nextRetryAt = computeExponentialBackoff(nowTs, retryCount)
           outboxRepository.MarkFailed(event.event_id, retryCount, nextRetryAt)
 }
+

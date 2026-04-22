@@ -9,10 +9,18 @@
 本说明仅补充“可选治理与演进手段”，当前正式链路仍是 `Friendship + Post + FeedInbox` 与 `fan-out on write`。
 
 ## 3. 高活跃用户 / 大V 演进说明
-当高活跃用户持续高频发布导致写扩散压力集中时，可在后续版本演进为“普通用户 push、大V pull”的混合策略。
+在当前题目约束下（单用户好友上限 5000），V1 统一采用 `fan-out on write` 是合理的：发布侧写扩散上限可预期，读取侧可稳定走 `FeedInbox -> BatchGet(Post)`，避免读时跨好友集合的重聚合与排序放大。
+
+当未来出现高活跃用户/广播型用户（短时间高频发布）时，写扩散会被持续放大，典型表现为 outbox 积压上升、分区写入热点增强、同一作者相关链路尾延迟抬升。
+
+后续可在不改变主模型（`Friendship + Post + FeedInbox`）的前提下演进为 hybrid：普通用户继续 push，大V转为 pull 路径。该能力仅作为演进方向，不属于当前 V1 mandatory execution path。
 
 ## 4. 首页首屏缓存优化说明
-针对时间线首页高频访问，可在后续按用户首屏结果做短 TTL 缓存以降低重复回表与尾延迟。
+在 `10M+` 用户规模下，首页首屏时间线是高并发刷新场景中的典型读热点；当大量用户短时间重复进入首页时，即使正式路径稳定，`FeedInbox -> BatchGet(Post)` 仍会承受明显重复读取压力。针对该热点，可增加 viewer-level first-page 的短 TTL 缓存（例如按 `viewerId + firstPageCursorKey` 组织），用于吸收短时间内的重复请求。
+
+该缓存仅是读优化层，不是唯一真相源，且不改变当前 friend timeline 正式主链路：命中缓存直接返回首屏结果，cache miss 或过期后仍回到 `FeedInbox -> BatchGet(Post)` 执行查询并回填缓存。
+
+该增强属于可选项，不是 V1 mandatory execution path；它的价值在于体现你在既有架构不变前提下，对 `10M+` 场景读热点治理的工程意识，这是面试答辩中的直接加分点。
 
 ## 5. friend list cache 可选优化说明
 针对 fan-out 反复读取同一作者好友集合的场景，可在后续引入好友列表缓存以减少关系表热点读取。

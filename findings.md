@@ -129,3 +129,26 @@
 ## 2026-04-22 V1 文档最小加分补强
 - 在 docs/v1-overview.md 新增“10.4 未来演进（仅说明）”，明确当前统一 push 合理性与未来 push/pull hybrid 演进方向。
 - 未改变 V1 主架构与当前实现范围，仅做说明性增强。
+
+## 2026-04-22 上下文压缩快照（skills管理）
+- 当前基线：V1 主架构固定为 Friendship + Post + FeedInbox，时间线主路径为 FeedInbox -> BatchGet(Post)。
+- 当前状态：已完成最终复审要求的修补与文档沉淀，包含 v1-overview.md 与 v1-enhancement-notes.md。
+- 边界锁定：仅 docs/pseudocode，不新增题外功能，不重构主架构。
+- 后续操作原则：优先做结构整理、去重、表达压缩；非用户明确要求不做语义级改动。
+
+## 2026-04-22 增强方案实际落盘复核
+- 复核结论：增强方案已实际进入文档与最小伪代码，不是纯文字承诺。
+- 文档侧已落盘：
+  - `docs/v1-enhancement-notes.md`（V1 enhancement notes 骨架）
+  - `docs/v1-overview.md`（10.4 未来演进，仅说明）
+  - `docs/technical-architecture.md`（最终缺口修复条款）
+  - `docs/final-delivery-spec.md`（有条件通过修正项）
+- 伪代码侧最小落盘：
+  - 幂等重复发布返回原 `post_id`（`result_ref` 语义）
+  - fan-out 按最终 FeedInbox item 数分批
+  - timeline overfetch + 去重 + 缺失降级补页
+  - 好友双边修复改为持久化补偿任务入口
+## 2026-04-22 本轮补强新增点
+- `docs/v1-enhancement-notes.md` 的“高活跃用户 / 大V 演进说明”已从一句话骨架扩写为工程化 3 段正文。
+- `domain/fanout_worker_service.pseudo` 已增加边界注释：V1 固定全量 push，hybrid 仅未来演进，不进入当前执行链路。
+- 处理过程发现一次文件编码风险（非 UTF-8），已恢复为 UTF-8 并回读确认内容正确。

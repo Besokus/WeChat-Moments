@@ -134,3 +134,23 @@
   - file: docs/v1-overview.md
   - scope: docs-only minimal enhancement, no architecture refactor
   - validation: rg check passed for section 10.4
+
+- [2026-04-22 12:43:02] Context management checkpoint updated with skills-style compression.
+  - files: task_plan.md, findings.md
+  - result: project baseline and scope lock are now explicitly recorded for session continuation
+  - next: follow user-driven minimal doc updates only
+
+- [2026-04-22 13:08:00] 执行“增强方案实际写入 + 最小伪代码落地”复核并完成计划文件同步。
+  - files: docs/v1-enhancement-notes.md, docs/v1-overview.md, docs/technical-architecture.md, docs/final-delivery-spec.md, domain/moment_service.pseudo, domain/fanout_worker_service.pseudo, storage/repositories.pseudo, task_plan.md, findings.md, progress.md
+  - validation: 关键关键词回读通过（result_ref->post_id、MAX_INBOX_SCAN_FACTOR、required_fanout_write_capacity、future hybrid note）
+  - next: 如需我可按本轮范围提交中文 commit
+- [2026-04-22 13:20:00] 完成增强方案最小落盘补强。
+  - files: docs/v1-enhancement-notes.md, domain/fanout_worker_service.pseudo
+  - action: 扩写“大V演进说明”小节；在 fanout worker 增加 V1 边界注释（不改执行逻辑）
+  - validation: 回读文件通过；关键字匹配通过
+  - next: 等待你确认是否提交本轮变更
+- [2026-04-22 13:24:00] 完成 fanout worker 文件编码恢复与最终回读。
+  - files: domain/fanout_worker_service.pseudo
+  - action: 恢复 UTF-8 编码，确认无乱码；保留并验证 V1/hybrid 边界注释。
+  - validation: Get-Content 回读通过，git status 仅显示预期改动
+  - next: 可执行提交
