@@ -148,7 +148,7 @@
 
 ## 12. 2026-04-22 高并发治理强约束（已落地到伪代码）
 - Outbox 分区消费：按 partition 拉取事件，限制每分区每周期最大处理量。
-- 背压阈值：PARTITION_PENDING_SOFT_LIMIT=20000 触发降速；PARTITION_PENDING_HARD_LIMIT=100000 触发告警并暂停该分区本轮消费。
+- 背压阈值：PARTITION_PENDING_SOFT_LIMIT=20000 触发降速；PARTITION_PENDING_HARD_LIMIT=100000 触发告警并切到最小配额持续排空（避免 backlog 冻结）。
 - 热点作者治理：worker 采用 author 短窗口合并（MERGE_WINDOW_SECONDS=5），单次好友读取复用到多个事件。
 - 时间线读放大治理：请求内 post_id 去重，仓储内部强制按分片聚合批读；缺失 post 走降级跳过，不阻塞整页返回。
 - 恢复 SLA：对账任务扫描周期 5 分钟，最大允许恢复窗口 15 分钟，超过重试上限进入 dead-letter。
@@ -166,9 +166,12 @@
 - 文档维护触发器生效：当模型/主流程/索引/边界变化时，必须同步更新本技术文档与变更记录。
 
 ## 13. 2026-04-22 最终缺口修复说明
-- 幂等返回语义：publishMoment 的 IdempotencyRecord.result_ref 必须保存 post_id；重复 request_id 必须返回原始 post_id，禁止返回 0。
+- 幂等返回语义：publishMoment 的 IdempotencyRecord.result_ref 必须保存 post_id；幂等作用域必须为 op_name + actor_id + request_id，重复请求必须返回原始 post_id，禁止返回 0。
 - fan-out 批量边界：FanoutWorker 按最终 FeedInbox item 数切分，公式为每批 items <= CHUNK_SIZE，避免 friend chunk * event count 放大。
+- 原子边界前提：Post + Outbox + Idempotency 必须在同 route/partition 事务内提交；否则需改为主写成功后可靠补偿语义。
 - 容量公式：required_fanout_write_capacity >= publish_qps * avg_friend_count；当实际能力低于该值时，系统必须承认 outbox 延迟会上升，并依赖背压阈值保护写链路。
+- 默认恢复目标：max_fanout_lag_target = 300s，max_backlog_recovery_time = 1800s（默认值，需压测校准）。
 - FeedInbox 历史边界：V1 只保证 retention 窗口内的近期好友时间线；超过 retention 的历史归档查询不属于当前最小闭环。
 - 好友修复语义：EnqueueEdgePairRepair 是持久化补偿任务入口，由 RepairFriendshipEdgePairFlow 异步幂等补齐双向边。
 - 分页语义：Post/FeedInbox cursor 使用 created_at + post_id；Friendship cursor 使用 created_at + friend_id。
+

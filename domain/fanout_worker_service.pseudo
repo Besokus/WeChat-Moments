@@ -11,6 +11,7 @@ SERVICE FanoutWorkerService {
   CONST MERGE_WINDOW_SECONDS = 5
   CONST PARTITION_PENDING_SOFT_LIMIT = 20000
   CONST PARTITION_PENDING_HARD_LIMIT = 100000
+  CONST HARD_DEGRADED_MIN_QUOTA = 100
   CONST MAX_EVENTS_PER_PARTITION_CYCLE = 1000
 
   # 职责：按分区消费 Outbox，并在积压场景执行背压与降速。
@@ -22,9 +23,9 @@ SERVICE FanoutWorkerService {
 
       if mode == "HARD_DEGRADED":
         # 高负载硬降级：优先保证发布主写成功，允许好友时间线短暂延迟可见。
-        # 不丢弃事件，保留最终一致性；由后续重试/补偿继续消化 backlog。
+        # 仍保留最小配额持续排空，避免 backlog 冻结，保持最终一致性活性。
         emitAlert("outbox hard backlog", partitionKey, pending)
-        continue
+        emitMetric("fanout.hard_degraded.partition", partitionKey, pending)
 
       if mode == "SOFT_DEGRADED":
         # 软降级：保留消费但降低吞吐，避免 fan-out 写扩散打穿存储链路。
@@ -101,8 +102,9 @@ SERVICE FanoutWorkerService {
   # 职责：按 backlog 阈值选择消费配额与降级模式。
   function selectQuotaByBacklog(pending: int) -> (int, string):
     if pending >= PARTITION_PENDING_HARD_LIMIT:
-      return 0, "HARD_DEGRADED"
+      return HARD_DEGRADED_MIN_QUOTA, "HARD_DEGRADED"
     if pending >= PARTITION_PENDING_SOFT_LIMIT:
       return MAX_EVENTS_PER_PARTITION_CYCLE / 4, "SOFT_DEGRADED"
     return MAX_EVENTS_PER_PARTITION_CYCLE, "NORMAL"
 }
+

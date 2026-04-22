@@ -181,3 +181,15 @@
   - action: 新增软/硬阈值降级分支，明确发布优先与最终一致性；扩写第8节工程权衡说明
   - validation: 关键字检索通过（HARD_DEGRADED/SOFT_DEGRADED、publish success first、最终一致性）
   - next: 如需可按本轮范围提交中文commit
+
+- [2026-04-22 19:38:05] 制定线上高并发审计级补强计划。
+  - files: task_plan.md, findings.md, progress.md
+  - action: 将 fan-out 容量、首页读峰值、retention 执行、分区扩容等缺口记录为下一阶段计划输入
+  - validation: planning-with-files + karpathy-guidelines 已用于范围控制
+  - next: 输出最小改进计划，等待确认后再落盘具体文档/伪代码
+
+- [2026-04-22 19:35:35] 完成高并发复审意见最小化落盘修复。
+  - files: domain/fanout_worker_service.pseudo, storage/repositories.pseudo, domain/friend_service.pseudo, domain/moment_service.pseudo, flows/publish_moment_flow.pseudo, docs/v1-overview.md, docs/technical-architecture.md, docs/v1-enhancement-notes.md, task_plan.md, findings.md
+  - action: 硬降级改为最小配额持续消费；幂等键补充 actor_id 作用域；补充原子边界前提与容量恢复目标；增强文档与伪代码一致性。
+  - validation: git diff 回读 + 关键词检索（HARD_DEGRADED_MIN_QUOTA、actor_id、max_fanout_lag_target、max_backlog_recovery_time）通过
+  - next: 等待你确认是否执行中文详细 commit

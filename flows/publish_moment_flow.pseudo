@@ -2,7 +2,7 @@
 
 FLOW PublishMomentFlow(author_id: long, content_text: string, request_id: string) {
   STEP 1: validate input and request_id
-  STEP 2: if request_id already exists, return stored post_id from IdempotencyRecord.result_ref
+  STEP 2: if (op_name + author_id + request_id) already exists, return stored post_id from IdempotencyRecord.result_ref
   STEP 3: build Post + OutboxEvent payload
   STEP 4: atomically write Post + Outbox + Idempotency record, where result_ref = post_id
   STEP 5: return accepted with post_id immediately (publish success first)
@@ -10,3 +10,4 @@ FLOW PublishMomentFlow(author_id: long, content_text: string, request_id: string
   STEP 7: async worker consumes outbox and fan-out writes FeedInbox in item-bounded chunks
   STEP 8: retry + reconcile keeps eventual consistency after load recovers
 }
+

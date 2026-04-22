@@ -23,6 +23,7 @@ TYPE OutboxEvent {
 
 TYPE IdempotencyRecord {
   op_name: string
+  actor_id: long            # idempotency scope key to avoid cross-user request_id collision
   request_id: string
   result_ref: string?       # publishMoment stores post_id here
   created_at: timestamp
@@ -50,11 +51,13 @@ INTERFACE MomentRepository {
   ListByAuthor(author_id: long, cursor: string?, limit: int, route: RouteContext) -> list<Post>
 
   # atomic boundary for reliability: Post + Outbox + Idempotency.
+  # precondition: these writes must land in the same route/partition transaction boundary.
   # publishMoment idempotency result_ref must be post.post_id.
   InsertPostWithOutboxAndIdempotency(
     post: Post,
     event: OutboxEvent,
     op_name: string,
+    actor_id: long,
     request_id: string,
     route: RouteContext
   ) -> bool
@@ -101,9 +104,10 @@ INTERFACE OutboxRepository {
 }
 
 INTERFACE IdempotencyRepository {
-  Get(op_name: string, request_id: string) -> IdempotencyRecord?
-  Save(op_name: string, request_id: string, result_ref: string) -> void
+  Get(op_name: string, actor_id: long, request_id: string) -> IdempotencyRecord?
+  Save(op_name: string, actor_id: long, request_id: string, result_ref: string) -> void
 }
 
 # 正式时间线读取路径只使用 FeedInboxRepository.ListByUser。
 # 不提供读时按 friendIds 聚合最近动态的仓储方法，避免误用为主路径。
+

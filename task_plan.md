@@ -128,3 +128,15 @@
 - Phase: 高负载降级策略增强 completed。
 - 已完成：文档第8节扩写 + worker/flow/service 最小可执行降级分支。
 - 约束保持：不改V1主功能范围，不改一致性目标，仅做工程治理增强。
+
+## Status Update
+2026-04-22 19:35:35
+- Phase: 高并发关键风险最小化修复 completed。
+- 已完成：硬降级从“停消费”调整为“最小配额持续消费”；幂等键作用域补充 `actor_id`；发布原子边界前提与容量恢复目标写入文档与伪代码契约。
+- 约束保持：主架构 `Friendship + Post + FeedInbox` 不变，未引入题外功能、未做大范围重构。
+
+## Status Update
+2026-04-22 19:38:05
+- Phase: 线上高并发审计级补强计划 in_progress。
+- 目标：针对 fan-out 容量不可证明、首页读回表瓶颈、FeedInbox retention 执行成本、分区策略偏契约级等问题制定最小改进计划。
+- 范围：仅围绕 `Friendship + Post + FeedInbox`、Outbox fan-out、FeedInbox timeline 主链路做计划，不引入评论/点赞/推荐等题外功能。

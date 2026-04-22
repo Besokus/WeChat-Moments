@@ -25,7 +25,7 @@ SERVICE MomentService {
     if requestId is null or trim(requestId) == "":
       return PublishResult(0, false, "missing request id")
 
-    idem = idempotencyRepository.Get("publishMoment", requestId)
+    idem = idempotencyRepository.Get("publishMoment", userId, requestId)
     if idem is not null:
       return PublishResult(toLong(idem.result_ref), true, "duplicate request accepted")
 
@@ -50,11 +50,11 @@ SERVICE MomentService {
 
     route = RouteContext(userId, null)
     ok = momentRepository.InsertPostWithOutboxAndIdempotency(
-      post, event, "publishMoment", requestId, route
+      post, event, "publishMoment", userId, requestId, route
     )
 
     if not ok:
-      saved = idempotencyRepository.Get("publishMoment", requestId)
+      saved = idempotencyRepository.Get("publishMoment", userId, requestId)
       if saved is not null:
         return PublishResult(toLong(saved.result_ref), true, "duplicate request accepted")
       return PublishResult(0, false, "idempotency conflict")
@@ -81,4 +81,5 @@ SERVICE MomentService {
 
     return PageResult(pageRows, nextCursor, hasMore)
 }
+
 

@@ -23,7 +23,7 @@ SERVICE FriendService {
     if requestId is null or trim(requestId) == "":
       return Result(false, "missing request id")
 
-    idem = idempotencyRepository.Get("addFriend", requestId)
+    idem = idempotencyRepository.Get("addFriend", userId, requestId)
     if idem is not null:
       return Result(true, "duplicate request accepted")
 
@@ -42,7 +42,7 @@ SERVICE FriendService {
       friendRepository.EnqueueEdgePairRepair(userId, friendId, now())
       return Result(false, "partial write, repair scheduled")
 
-    idempotencyRepository.Save("addFriend", requestId, toString(userId) + ":" + toString(friendId))
+    idempotencyRepository.Save("addFriend", userId, requestId, toString(userId) + ":" + toString(friendId))
     return Result(true, "ok")
 
   # 职责：按 cursor + limit 分页查询某用户好友列表。
@@ -63,3 +63,4 @@ SERVICE FriendService {
 
     return PageResult(pageRows, nextCursor, hasMore)
 }
+

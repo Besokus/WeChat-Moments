@@ -142,11 +142,11 @@ V1 关键文件：
 
 ## 9. 关键工程语义（V1）
 ### 9.1 幂等语义
-- `publishMoment`：`request_id` 重复必须返回同一 `post_id`（来自 `IdempotencyRecord.result_ref`）。
-- `addFriend`：重复请求不重复建边。
+- `publishMoment`：幂等键作用域为 `op_name + actor_id + request_id`，重复请求必须返回同一 `post_id`（来自 `IdempotencyRecord.result_ref`）。
+- `addFriend`：幂等键作用域为 `op_name + actor_id + request_id`，重复请求不重复建边。
 
 ### 9.2 一致性与恢复
-- 发布主写边界：`Post + Outbox + Idempotency` 原子化。
+- 发布主写边界：`Post + Outbox + Idempotency` 原子化（前提：同 route/partition 事务边界）。
 - fan-out 失败：重试 + backoff + dead-letter。
 - 对账修复：`ReconcileFeedInboxFlow` 扫描并重放缺失项。
 - 好友边修复：`RepairFriendshipEdgePairFlow` 幂等补齐双边关系。
@@ -158,7 +158,7 @@ V1 关键文件：
 
 ### 9.4 fan-out 治理语义
 - Outbox 分区消费
-- 积压软硬阈值背压
+- 积压软硬阈值背压（硬降级仍保留最小消费配额排空）
 - 热点 author 短窗口合并
 - 批写按最终 FeedInbox item 数切分（`items <= CHUNK_SIZE`）
 
@@ -184,6 +184,8 @@ V1 关键文件：
 - `required_fanout_write_capacity >= publish_qps * avg_friend_count`
 - 当实际能力低于该值时，outbox 延迟会上升，由背压阈值保护链路。
 
+- `max_fanout_lag_target = 300s`（默认目标值）
+- `max_backlog_recovery_time = 1800s`（默认目标值）
 说明：阈值参数为 V1 默认值，后续需要通过压测回填校准。
 
 ### 10.4 未来演进（仅说明）
@@ -210,4 +212,5 @@ V1 关键文件：
 - 保持最小闭环，不发生范围失控
 
 本版本可作为“最终提交版基础稿”用于课程作业与面试讲解。
+
 

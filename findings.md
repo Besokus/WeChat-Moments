@@ -170,3 +170,17 @@
 - 已在 fan-out worker 引入可执行降级分支：`SOFT_DEGRADED` 降速消费、`HARD_DEGRADED` 暂停该分区消费并保留事件。
 - 已在 publish flow 与 moment service 明确“发布成功优先、时间线可短暂延迟、最终一致性不变”。
 - 已扩写 `docs/v1-enhancement-notes.md` 第8节，强调该策略是高并发工程权衡而非功能缺失。
+
+## 2026-04-22 高并发复审缺口最小修复（活性/幂等/边界）
+- 活性修复：`HARD_DEGRADED` 不再停消费，改为最小配额持续消费，避免 backlog 冻结。
+- 幂等修复：幂等键升级为 `op_name + actor_id + request_id`，降低跨用户误命中风险。
+- 原子边界修复：明确 `Post + Outbox + Idempotency` 需同路由/同分区原子写前提。
+- 容量说明修复：补充默认恢复目标 `max_fanout_lag_target=300s`、`max_backlog_recovery_time=1800s`，用于压测对标。
+- 范围控制：仅做最小化伪代码与文档补强，不改变 V1 主架构和功能边界。
+
+## 2026-04-22 线上高并发审计级待补强点
+- fan-out 容量目前已有公式和默认目标，但缺少可执行容量预算表、分区数/worker 数/单分区吞吐的推导入口。
+- 首页读峰值瓶颈已识别为 `FeedInbox -> BatchGet(Post)`，但需要把 first-page cache 的失败回退、命中率目标、读放大指标写成验收项。
+- FeedInbox retention 已有 365 天/每用户 20000 行边界，但仍需说明按分区滚动清理、禁止全局扫描、清理对在线读写限速。
+- 分片/分区目前有 `RouteContext` 与按 userId 路由契约，需要补充热点分区识别、扩容触发、跨分片批读聚合边界。
+- 这些补强应保持 V1 主模型不变，只把“提到分区/背压/retention”升级为“可验证的工程约束”。
