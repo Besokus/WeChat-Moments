@@ -76,6 +76,18 @@ INTERFACE FeedInboxRepository {
   DeleteOldestExceed(user_id: long, keep_rows: int, route: RouteContext) -> int
 }
 
+INTERFACE TimelineCacheRepository {
+  # optional read optimization for first page; not source of truth
+  GetFirstPage(viewer_id: long, limit: int) -> PageResult<Post>?
+  SetFirstPage(viewer_id: long, limit: int, page: PageResult<Post>, ttl_seconds: int) -> void
+}
+
+
+INTERFACE FriendListCacheRepository {
+  # optional fan-out read optimization only; Friendship remains source of truth
+  GetByUser(user_id: long) -> list<Friendship>?
+  SetByUser(user_id: long, friends: list<Friendship>, ttl_seconds: int) -> void
+}
 INTERFACE OutboxRepository {
   # queue partition control for write-fanout throughput governance
   ListActivePartitions(now_ts: timestamp) -> list<long>

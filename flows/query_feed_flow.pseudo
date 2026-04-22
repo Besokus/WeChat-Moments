@@ -2,10 +2,11 @@
 
 FLOW QueryFriendTimelineFlow(viewer_user_id: long, page: PageRequest) {
   STEP 1: validate limit and decode cursor
-  STEP 2: read FeedInbox by (user_id, created_at DESC, post_id)
-  STEP 3: collect post_ids from inbox rows
-  STEP 4: batch load Post rows by post_ids
-  STEP 5: keep inbox order and assemble PageResult<Post>
-  STEP 6: encode next_cursor from last inbox row
-  STEP 7: return page result
+  STEP 2: if first page, try viewer-level first-page cache (short TTL)
+  STEP 3: on cache miss/expired, read FeedInbox by (user_id, created_at DESC, post_id)
+  STEP 4: collect post_ids from inbox rows
+  STEP 5: batch load Post rows by post_ids
+  STEP 6: keep inbox order and assemble PageResult<Post>
+  STEP 7: encode next_cursor from last inbox row and optionally write first-page cache
+  STEP 8: return page result
 }

@@ -9,9 +9,11 @@ TYPE PageResult<T> {
 SERVICE TimelineService {
   DEPENDS ON FeedInboxRepository
   DEPENDS ON MomentRepository
+  DEPENDS ON TimelineCacheRepository
 
   CONST MAX_PAGE_SIZE = 100
   CONST MAX_INBOX_SCAN_FACTOR = 3
+  CONST FIRST_PAGE_CACHE_TTL_SECONDS = 15
 
   # 职责：从 FeedInbox 分页读取好友时间线，保持顺序并批量回查 Post。
   function listFriendMoments(viewerId: long, cursor: string?, limit: int) -> PageResult<Post>:
@@ -19,6 +21,12 @@ SERVICE TimelineService {
       return PageResult([], null, false)
 
     size = clamp(limit, 1, MAX_PAGE_SIZE)
+    isFirstPage = cursor is null or trim(cursor) == ""
+    if isFirstPage:
+      cached = timelineCacheRepository.GetFirstPage(viewerId, size)
+      if cached is not null:
+        return cached
+
     route = RouteContext(viewerId, null)
     scanLimit = size * MAX_INBOX_SCAN_FACTOR + 1
     inboxRows = feedInboxRepository.ListByUser(viewerId, cursor, scanLimit, route)
@@ -50,5 +58,9 @@ SERVICE TimelineService {
       last = consumedRows[length(consumedRows) - 1]
       nextCursor = encodeCursor(last.created_at, last.post_id)
 
-    return PageResult(items, nextCursor, nextCursor is not null)
+    page = PageResult(items, nextCursor, nextCursor is not null)
+    if isFirstPage:
+      # cache is optional optimization, not source of truth
+      timelineCacheRepository.SetFirstPage(viewerId, size, page, FIRST_PAGE_CACHE_TTL_SECONDS)
+    return page
 }
