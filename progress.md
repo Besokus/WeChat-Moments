@@ -199,3 +199,21 @@
   - action: 硬降级改为最小配额持续消费；幂等键补充 actor_id 作用域；补充原子边界前提与容量恢复目标；增强文档与伪代码一致性。
   - validation: git diff 回读 + 关键词检索（HARD_DEGRADED_MIN_QUOTA、actor_id、max_fanout_lag_target、max_backlog_recovery_time）通过
   - next: 等待你确认是否执行中文详细 commit
+
+- [2026-04-22 20:00:00] P0 风险复核：发布入口 admission control 缺口确认。
+  - files: domain/moment_service.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md, findings.md
+  - action: 复核现状后确认风险真实存在（入口无限接单 -> backlog延迟爆炸），准备最小补丁方案（阈值分级、返回语义、受控拒绝）。
+  - validation: 已回读 publish 主链路与文档现状；无 admission control 入口闭环。
+  - next: 输出最小伪代码补丁与文档补丁文本
+
+- [2026-04-22 20:10:00] 完成生产就绪补强文档落盘。
+  - files: docs/capacity-plan.md, docs/failure-matrix.md, docs/production-readiness-checklist.md, docs/technical-architecture.md, task_plan.md, findings.md, progress.md
+  - action: 新增容量规划、失败矩阵、生产就绪检查清单，并在技术文档登记。
+  - validation: 关键词检查通过（容量公式、失败矩阵、上线前补齐项、上线门槛、技术文档索引）。
+  - next: 等待用户确认是否提交本轮文档补强。
+
+- [2026-04-22 20:08:00] 落盘 P0 入口流量治理补丁。
+  - files: domain/moment_service.pseudo, flows/publish_moment_flow.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md, docs/v1-enhancement-notes.md, task_plan.md, findings.md, progress.md
+  - action: 新增 publish admission control（soft/hard 阈值、分级行为、返回语义）；同步流程与交付文档。
+  - validation: 回读关键字通过（accepted_but_delayed、rejected_retry_later、PUBLISH_ADMISSION_SOFT_PENDING、PUBLISH_ADMISSION_HARD_PENDING）。
+  - next: 汇总输出本轮修复内容并等待你确认是否提交

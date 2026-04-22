@@ -136,6 +136,25 @@
 - 约束保持：主架构 `Friendship + Post + FeedInbox` 不变，未引入题外功能、未做大范围重构。
 
 ## Status Update
+2026-04-22 20:00:00
+- Phase: 发布入口流量治理（P0） in_progress。
+- 当前判断：风险真实存在。现状缺口为“仅靠异步消费背压，入口缺少受控拒绝语义”。
+- 下一步：仅做最小补丁（soft/hard 阈值 -> 行为 -> 对外返回语义），不重构主架构。
+
+## Status Update
+2026-04-22 20:10:00
+- Phase: 生产就绪补强文档 completed。
+- 已完成：新增容量规划、失败矩阵、生产就绪检查清单三份文档。
+- 目标：把真实线上高并发缺口转化为可压测、可恢复、可验收的上线前门槛。
+- 范围：仅文档补强，不改变 `Friendship + Post + FeedInbox` 主架构。
+
+## Status Update
+2026-04-22 20:08:00
+- Phase: 发布入口流量治理（P0） completed。
+- 已完成：publish 入口 admission control（soft/hard 阈值、分级行为、返回语义）落盘到 service/flow/docs。
+- 约束保持：不改主架构，不新增题外功能，不把问题推给无限异步堆积。
+
+## Status Update
 2026-04-22 19:38:05
 - Phase: 线上高并发审计级补强计划 completed。
 - 目标：针对 fan-out 容量不可证明、首页读回表瓶颈、FeedInbox retention 执行成本、分区策略偏契约级等问题制定最小改进计划。

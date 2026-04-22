@@ -15,8 +15,12 @@ TYPE PageResult<T> {
 SERVICE MomentService {
   DEPENDS ON UserRepository
   DEPENDS ON MomentRepository
+  DEPENDS ON OutboxRepository
   DEPENDS ON IdempotencyRepository
   DEPENDS ON IdGenerator
+
+  CONST PUBLISH_ADMISSION_SOFT_PENDING = 20000
+  CONST PUBLISH_ADMISSION_HARD_PENDING = 100000
 
   # 职责：发布动态主写路径，原子写 Post + Outbox + Idempotency，异步 fan-out。
   function publishMoment(userId: long, content: string, requestId: string) -> PublishResult:
@@ -32,9 +36,20 @@ SERVICE MomentService {
     if userRepository.getById(userId) is null:
       return PublishResult(0, false, "user not found")
 
+    # 入口流量治理：高压下不无限接单，优先保护整体稳定性。
+    nowTs = now()
+    admission = evaluatePublishAdmission(userId, nowTs)
+    if admission == "REJECTED_RETRY_LATER":
+      emitMetric("publish.admission.rejected", userId)
+      return PublishResult(0, false, "rejected_retry_later")
+
+    delayed = (admission == "ACCEPTED_BUT_DELAYED")
+    if delayed:
+      emitMetric("publish.admission.accepted_but_delayed", userId)
+
     postId = idGenerator.NextPostId()
     eventId = idGenerator.NextOutboxEventId()
-    createdAt = now()
+    createdAt = nowTs
 
     post = Post(postId, userId, content, createdAt)
     event = OutboxEvent(
@@ -59,9 +74,24 @@ SERVICE MomentService {
         return PublishResult(toLong(saved.result_ref), true, "duplicate request accepted")
       return PublishResult(0, false, "idempotency conflict")
 
-    # 发布优先：高负载下也不等待 fan-out 完成；好友时间线允许短暂延迟可见。
+    # 发布优先：不等待 fan-out 完成；高负载时允许时间线短暂延迟可见。
     # 最终一致性由 outbox worker + 重试/补偿保证。
+    if delayed:
+      return PublishResult(postId, true, "accepted_but_delayed")
     return PublishResult(postId, true, "accepted")
+
+  # 职责：发布入口准入控制，形成阈值->行为->返回语义闭环。
+  function evaluatePublishAdmission(userId: long, nowTs: timestamp) -> string:
+    # 与 fan-out worker 一致：按发布路由分区观察 pending。
+    pending = outboxRepository.CountPendingByPartition(userId, nowTs)
+
+    if pending >= PUBLISH_ADMISSION_HARD_PENDING:
+      # 硬阈值：受控拒绝，要求客户端退避重试。
+      return "REJECTED_RETRY_LATER"
+    if pending >= PUBLISH_ADMISSION_SOFT_PENDING:
+      # 软阈值：接收但延迟可见，不承诺实时 fan-out。
+      return "ACCEPTED_BUT_DELAYED"
+    return "ACCEPTED"
 
   # 职责：按 authorId + cursor + limit 倒序分页查询个人动态。
   function listUserMoments(authorId: long, cursor: string?, limit: int) -> PageResult<Post>:
@@ -81,5 +111,3 @@ SERVICE MomentService {
 
     return PageResult(pageRows, nextCursor, hasMore)
 }
-
-

@@ -111,6 +111,7 @@
 - `2026-04-21`：初始化文档；确认正式时间线路径为 `FeedInbox + fan-out on write`；收敛接口与服务契约一致性。
 - `2026-04-22`：补充高并发治理条款（分区消费/背压阈值/热点合并/retention）；新增时间线读放大优化（post_id 去重、缺失降级跳过）；同步固化技术边界（仅伪代码、禁止读扩散回退）。
 - `2026-04-22`：补充线上高并发审计级验收标准：fan-out 容量预算、首页读峰值、retention 分区清理、分片禁止广播查询。
+- `2026-04-22`：新增生产就绪补强文档：容量规划、失败矩阵、生产就绪检查清单，用于区分 V1 设计稿与真实上线条件。
 
 ## 11. 问题清单与优化实施计划（高并发/高负载）
 ### 11.1 P0 优化（必须完成）
@@ -213,4 +214,32 @@
 | FeedInbox 膨胀 | 有 retention window、每用户行数上限、分区滚动清理与 V1 历史边界 |
 | 分片/分区 | Friendship/FeedInbox/Post/Outbox 均有路由语义，禁止全分片广播 |
 | 失败恢复 | Outbox 重试、dead-letter、reconcile 与最小消费配额均保留最终一致性活性 |
+
+## 17. 生产就绪补强文档
+- `docs/capacity-plan.md`：定义 fan-out 写扩散、worker 能力、backlog 增长/恢复、首页读取与 retention 的容量验收口径。
+- `docs/failure-matrix.md`：按发布、fan-out、查询、retention、好友修复等场景列出失败影响与恢复策略。
+- `docs/production-readiness-checklist.md`：明确当前 V1 已具备能力、真实上线前必须补齐内容与最终上线门槛。
+
+这三份文档不改变 V1 主架构，只把真实线上系统的容量边界、失败边界和上线门槛显式化。
+
+
+## 18. 发布入口流量治理闭环（P0）
+为避免高压场景下 publish 入口无限接单，V1 增加入口级 admission control，不改变主架构 `Friendship + Post + FeedInbox`。
+
+- `soft threshold`：`PUBLISH_ADMISSION_SOFT_PENDING = 20000`
+- `hard threshold`：`PUBLISH_ADMISSION_HARD_PENDING = 100000`
+- 观测口径：按发布 route partition 的 `outbox pending` 计数
+
+行为定义：
+1. `pending < soft`：正常接收，返回 `accepted`。
+2. `soft <= pending < hard`：降级接收，返回 `accepted_but_delayed`，允许时间线短暂延迟可见。
+3. `pending >= hard`：受控拒绝，返回 `rejected_retry_later`，要求客户端退避重试。
+
+原则说明：
+- 系统稳定性优先，不承诺所有发布请求无限 accepted。
+- 高压下允许“延迟可见”与“受控拒绝”，防止 backlog 持续失控。
+- 对于已 accepted 请求，最终一致性仍由 outbox worker + retry + reconcile 保证。
+
+## 19. 变更记录补充（2026-04-22）
+- 新增发布入口 admission control（soft/hard 阈值、分级行为、返回语义）以补齐入口流量治理闭环。
 

@@ -196,3 +196,20 @@
 - TimelineService 已明确 first-page cache fallback、BatchGet(Post) 指标与返回条数可能小于 limit 的边界。
 - FeedRetentionFlow 已从抽象清理改为按 route partition、限用户数、限 DELETE_CHUNK、低优先级执行。
 - Repository 契约已明确批读/批写按 route 分组，禁止全分片广播查询。
+
+## 2026-04-22 发布入口治理风险确认（P0）
+- 当前 publish 主链路已具备 outbox 背压与异步 fan-out，但缺少入口级 admission control 闭环。
+- 若在高压下继续默认 accepted，会导致 backlog 持续增长并把风险从“入口”转移为“延迟爆炸”。
+- 结论：该风险真实存在，属于 P0，需要补充阈值分级行为与对外返回语义（accepted / accepted_but_delayed / rejected_retry_later）。
+
+## 2026-04-22 发布入口治理闭环落盘（P0）
+- 已新增两级阈值：`PUBLISH_ADMISSION_SOFT_PENDING=20000`、`PUBLISH_ADMISSION_HARD_PENDING=100000`。
+- 已形成分级行为：正常接收 / 降级接收（延迟可见）/ 受控拒绝（稍后重试）。
+- 已形成对外返回语义：`accepted`、`accepted_but_delayed`、`rejected_retry_later`。
+- 最终一致性目标保持不变：仅改变入口接单策略，不改变已 accepted 请求的 outbox+reconcile 保障。
+
+## 2026-04-22 生产就绪补强文档落盘
+- 新增 `docs/capacity-plan.md`，将 fan-out、首页读取、retention 的高并发风险转为容量公式与压测验收项。
+- 新增 `docs/failure-matrix.md`，明确 Post/Outbox/Idempotency/fan-out/cache/retention 等失败场景的恢复策略。
+- 新增 `docs/production-readiness-checklist.md`，区分当前 V1 已具备能力与真实上线前必须补齐的压测、分片、可观测性、运维闭环。
+- 本轮不改变主架构，不新增题外功能，仅把生产边界显式化。

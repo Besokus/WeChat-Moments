@@ -3,11 +3,12 @@
 FLOW PublishMomentFlow(author_id: long, content_text: string, request_id: string) {
   STEP 1: validate input and request_id
   STEP 2: if (op_name + author_id + request_id) already exists, return stored post_id from IdempotencyRecord.result_ref
-  STEP 3: build Post + OutboxEvent payload
-  STEP 4: atomically write Post + Outbox + Idempotency record, where result_ref = post_id
-  STEP 5: return accepted with post_id immediately (publish success first)
-  STEP 6: if fan-out backlog is high, allow friend timeline delayed visibility (degradation)
-  STEP 7: async worker consumes outbox and fan-out writes FeedInbox in item-bounded chunks
-  STEP 8: retry + reconcile keeps eventual consistency after load recovers
+  STEP 3: evaluate publish admission by route pending backlog
+  STEP 4: if pending >= hard threshold, return rejected_retry_later
+  STEP 5: if soft <= pending < hard, continue with accepted_but_delayed mode
+  STEP 6: build Post + OutboxEvent payload
+  STEP 7: atomically write Post + Outbox + Idempotency record, where result_ref = post_id
+  STEP 8: return accepted / accepted_but_delayed with post_id immediately (publish success first)
+  STEP 9: async worker consumes outbox and fan-out writes FeedInbox in item-bounded chunks
+  STEP 10: retry + reconcile keeps eventual consistency after load recovers
 }
-

@@ -125,3 +125,25 @@
 3. FeedInbox 时间线只承诺 retention 窗口内的近期数据，历史归档不属于 V1。
 4. fan-out 容量必须用 required_fanout_write_capacity >= publish_qps * avg_friend_count 表达。
 5. 好友双边修复必须是持久化补偿任务，而不是仅同步兜底调用。
+
+## 13. 发布入口准入达标线（P0新增）
+publish 主链路必须包含入口级准入控制，形成“阈值 -> 行为 -> 返回语义”闭环：
+
+- 阈值：
+  - `soft threshold`（分区 pending 软阈值）
+  - `hard threshold`（分区 pending 硬阈值）
+
+- 行为：
+  1. 低于 soft：正常接收
+  2. soft/hard 之间：降级接收（可见性延迟）
+  3. 超过 hard：受控拒绝（要求退避重试）
+
+- 对外返回语义必须可判定：
+  - `accepted`
+  - `accepted_but_delayed`
+  - `rejected_retry_later`
+
+验收原则：
+- 系统稳定性优先于“无限接单”；
+- 高压下允许延迟可见与受控拒绝；
+- 最终一致性目标保留（针对已接收请求）。
