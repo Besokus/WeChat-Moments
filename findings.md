@@ -121,3 +121,11 @@
 - 分片路由缺口：IdGenerator 与 MomentRepository 明确 post_id 必须可路由到 Post 分片。
 - 交付边界缺口：文档明确 FeedInbox V1 只保证 retention 窗口内的近期时间线。
 - 容量证明缺口：文档新增 required_fanout_write_capacity >= publish_qps * avg_friend_count。
+
+## 2026-04-22 V1 全量架构总览文档新增
+- 新增 docs/v1-overview.md，系统化汇总当前 V1 的架构、模型、流程、约束映射、边界与验收结论。
+- 内容保持现有设计语义，不引入新模块，不扩大范围。
+
+## 2026-04-22 V1 文档最小加分补强
+- 在 docs/v1-overview.md 新增“10.4 未来演进（仅说明）”，明确当前统一 push 合理性与未来 push/pull hybrid 演进方向。
+- 未改变 V1 主架构与当前实现范围，仅做说明性增强。

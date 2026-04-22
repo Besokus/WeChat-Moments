@@ -86,3 +86,8 @@
 2026-04-22 00:46:43
 - Final review gap-fix phase completed in working tree.
 - Fixed idempotent publish return, item-bounded fanout chunking, persisted friendship repair, timeline overfetch, post_id shard routing, retention boundary, and fanout capacity formula.
+
+## Status Update 
+2026-04-22 12:31:02
+- Added final V1 architecture/design overview document for submission and interview explanation.
+- Scope unchanged: docs-only consolidation, no new architecture modules introduced.

@@ -119,3 +119,18 @@
   - files: domain/moment_service.pseudo, domain/fanout_worker_service.pseudo, domain/timeline_service.pseudo, domain/friend_service.pseudo, storage/repositories.pseudo, storage/id_generator.pseudo, storage/cursor.pseudo, flows/publish_moment_flow.pseudo, flows/repair_friendship_flow.pseudo, flows/feed_retention_flow.pseudo, docs/technical-architecture.md, docs/final-delivery-spec.md
   - validation: pending keyword verification
   - next: run rg checks for idempotent post_id, item-bounded fanout, retention boundary, capacity formula
+
+- [2026-04-22 00:50:00] 最终评审缺口修复校验完成。
+  - checks: result_ref post_id, item-bounded fanout, timeline overfetch, EnqueueEdgePairRepair, post_id routing, retention boundary, capacity formula, cursor split
+  - validation: rg keyword checks passed
+  - note: AGENTS.md has pre-existing unrelated changes and is excluded from this task scope
+
+- [2026-04-22 12:31:02] Added V1 full architecture overview doc.
+  - file: docs/v1-overview.md
+  - validation: read-back checked first 40 lines
+  - next: wait for user review / commit instruction
+
+- [2026-04-22 12:34:00] Inserted future-evolution note into v1-overview.md.
+  - file: docs/v1-overview.md
+  - scope: docs-only minimal enhancement, no architecture refactor
+  - validation: rg check passed for section 10.4
